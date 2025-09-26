@@ -1,30 +1,27 @@
-const CACHE_NAME = 'ttgo-reader-v1';
-const URLS_TO_CACHE = [
+const CACHE_NAME = 'ttgo-reader-v2'; // Versione incrementata per forzare l'aggiornamento
+const APP_SHELL_URLS = [
   './',
   './index.html',
-  'https://cdn.tailwindcss.com',
-  'https://unpkg.com/@babel/standalone/babel.min.js',
-  'https://esm.sh/react@18.2.0',
-  'https://esm.sh/react-dom@18.2.0/client'
+  './manifest.json'
 ];
 
-// Evento di installazione: apre la cache e aggiunge le risorse principali
+// Evento di installazione: mette in cache solo l'app shell locale.
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(URLS_TO_CACHE);
+        console.log('Opened cache and caching app shell');
+        return cache.addAll(APP_SHELL_URLS);
       })
   );
 });
 
-// Evento di fetch: intercetta le richieste di rete
+// Evento di fetch: serve dalla cache, altrimenti va in rete e poi mette in cache.
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Se la risorsa è nella cache, la restituisce
+        // Se la risorsa è in cache, la restituisce
         if (response) {
           return response;
         }
@@ -32,25 +29,30 @@ self.addEventListener('fetch', event => {
         // Altrimenti, prova a recuperarla dalla rete
         return fetch(event.request).then(
           networkResponse => {
-            // Se la richiesta ha successo, la mette in cache per il futuro
-            if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && networkResponse.type !== 'cors') {
+            // Controlla se abbiamo ricevuto una risposta valida
+            if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === 'error') {
               return networkResponse;
             }
 
+            // Clona la risposta perché deve essere usata sia dal browser che dalla cache
             const responseToCache = networkResponse.clone();
-            caches.open(CACHE_ALE_NAME)
+
+            caches.open(CACHE_NAME)
               .then(cache => {
                 cache.put(event.request, responseToCache);
               });
 
             return networkResponse;
           }
-        );
+        ).catch(error => {
+          console.log('Fetch failed; user is offline and resource is not in cache.', error);
+          // Non restituisce nulla, quindi il browser mostrerà la sua pagina offline
+        });
       })
   );
 });
 
-// Evento di attivazione: pulisce le vecchie cache
+// Evento di attivazione: pulisce le vecchie cache non più necessarie
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -58,6 +60,7 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
