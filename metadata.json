@@ -1,0 +1,5 @@
+{
+  "name": "TTGO Bluetooth Reader v01",
+  "description": "An application to connect to a TTGO ESP32 board via Bluetooth and display real-time measurements in centimeters. This app uses the Web Bluetooth API, please use a compatible browser like Chrome on Android.",
+  "requestFramePermissions": []
+}
