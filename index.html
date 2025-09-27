@@ -276,14 +276,51 @@
             const handleSaveFile = () => {
                 if (measurements.length === 0) return;
 
-                const data = [
-                    ['Num', 'Diametro (cm)', 'Lunghezza (cm)', 'Volume (m³)'],
-                    ...measurements.map(m => [m.num, m.diameter, m.length, m.volume])
-                ];
+                // Create empty worksheet
+                const ws = XLSX.utils.aoa_to_sheet([]);
+                
+                // Add headers for first block (A1:D1)
+                XLSX.utils.sheet_add_aoa(ws, [['Num', 'Diametro (cm)', 'Lunghezza (cm)', 'Volume (m³)']], {origin: 'A1'});
+                
+                // Add headers for second block (E1:H1)
+                XLSX.utils.sheet_add_aoa(ws, [['Num', 'Diametro (cm)', 'Lunghezza (cm)', 'Volume (m³)']], {origin: 'E1'});
+                
+                // Split measurements into two groups
+                const firstBlock = measurements.slice(0, 60);  // 1-60
+                const secondBlock = measurements.slice(60, 120); // 61-120
+                
+                // Add first block data (A2:D61)
+                if (firstBlock.length > 0) {
+                    const firstBlockData = firstBlock.map(m => [m.num, m.diameter, m.length, m.volume]);
+                    XLSX.utils.sheet_add_aoa(ws, firstBlockData, {origin: 'A2'});
+                }
+                
+                // Add second block data (E2:H61)
+                if (secondBlock.length > 0) {
+                    const secondBlockData = secondBlock.map(m => [m.num, m.diameter, m.length, m.volume]);
+                    XLSX.utils.sheet_add_aoa(ws, secondBlockData, {origin: 'E2'});
+                }
+                
+                // Calculate total volume (convert comma to dot for calculation)
+                const totalVolume = measurements.reduce((sum, m) => {
+                    return sum + parseFloat(m.volume.replace(',', '.'));
+                }, 0);
+                
+                // Add "Totale m3" label in I63
+                XLSX.utils.sheet_add_aoa(ws, [['Totale m3']], {origin: 'I63'});
+                
+                // Add total volume in I64 (with comma notation)
+                XLSX.utils.sheet_add_aoa(ws, [[totalVolume.toFixed(4).replace('.', ',')]], {origin: 'I64'});
+                
+                // Add "10% corteccia" label in H65
+                XLSX.utils.sheet_add_aoa(ws, [['10% corteccia']], {origin: 'H65'});
+                
+                // Add 90% of total volume in I65 (with comma notation)
+                const volumeAfterBark = totalVolume * 0.9;
+                XLSX.utils.sheet_add_aoa(ws, [[volumeAfterBark.toFixed(4).replace('.', ',')]], {origin: 'I65'});
 
-                const worksheet = XLSX.utils.aoa_to_sheet(data);
                 const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Misure");
+                XLSX.utils.book_append_sheet(workbook, ws, "Misure");
                 
                 const finalFileName = fileName.trim() ? `${fileName.trim()}.ods` : `misure_TTGO_${new Date().toISOString().split('T')[0]}.ods`;
 
