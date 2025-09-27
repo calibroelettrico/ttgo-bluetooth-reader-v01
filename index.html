@@ -229,7 +229,7 @@
                 const radiusCm = parseFloat(diameterCm) / 2;
                 
                 const volumeCm3 = Math.PI * Math.pow(radiusCm, 2) * parseFloat(currentLengthCm);
-                const volume = (volumeCm3 / 1000000).toFixed(2); // Convert cm³ to m³
+                const volume = (volumeCm3 / 1000000).toFixed(4); // Convert cm³ to m³
 
                 const newMeasurement = {
                     num: count,
