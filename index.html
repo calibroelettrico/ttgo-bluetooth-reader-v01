@@ -64,8 +64,12 @@
       // --- Componente MeasurementDisplay ---
       const MeasurementDisplay = ({ measurement }) => {
         const MAX_DISPLAY_CM = 200;
-        const displayValue = measurement ?? 0;
+        const displayValue = (measurement !== null && !isNaN(measurement)) ? measurement : 0;
         const percentage = Math.min((displayValue / MAX_DISPLAY_CM) * 100, 100);
+
+        const isValidMeasurement = measurement !== null && !isNaN(measurement);
+        const integerPart = isValidMeasurement ? Math.trunc(measurement) : null;
+        const fractionalPart = isValidMeasurement ? measurement.toFixed(1).split('.')[1] : null;
 
         return (
           <div className="relative w-80 h-80 flex items-center justify-center">
@@ -79,10 +83,11 @@
                 strokeLinecap="round"
               />
             </svg>
-            <div className="z-10 text-center">
-              {measurement !== null ? (
+            <div className="z-10 text-center flex items-baseline">
+              {isValidMeasurement ? (
                 <>
-                  <span className="text-8xl font-bold text-white tracking-tighter">{measurement}</span>
+                  <span className="text-8xl font-bold text-white tracking-tighter">{integerPart}</span>
+                  {fractionalPart && <span className="text-6xl font-bold text-cyan-400">.{fractionalPart}</span>}
                   <span className="text-3xl font-light text-slate-400 ml-2">cm</span>
                 </>
               ) : (
@@ -147,9 +152,12 @@
             characteristic.addEventListener('characteristicvaluechanged', (event) => {
               const target = event.target;
               const value = target.value;
-              if (value) {
-                const cmValue = value.getUint16(0, true); 
-                setMeasurement(cmValue);
+              if (value && value.byteLength >= 2) {
+                const mmValue = value.getUint16(0, true); // Value is in millimeters
+                if (!isNaN(mmValue)) {
+                  const cmValue = mmValue / 10.0; // Convert to centimeters
+                  setMeasurement(cmValue);
+                }
               }
             });
             
