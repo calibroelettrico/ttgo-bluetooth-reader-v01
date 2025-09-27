@@ -146,11 +146,17 @@
             characteristic.addEventListener('characteristicvaluechanged', (event) => {
               const target = event.target;
               const value = target.value;
-              if (value && value.byteLength >= 2) {
-                const mmValue = value.getUint16(0, true); // littleEndian = true
+              // --- MODIFICA CHIAVE: Legge un pacchetto di 6 byte ---
+              if (value && value.byteLength >= 6) {
+                // Primi 2 byte: misurazione in mm (Little Endian)
+                const mmValue = value.getUint16(0, true); 
                 const cmValue = mmValue / 10.0;
+                
+                // Successivi 4 byte: conteggio (Little Endian)
+                const countValue = value.getUint32(2, true);
+
                 setMeasurement(cmValue);
-                setMeasurementCount(prevCount => prevCount + 1); // Increment counter
+                setMeasurementCount(countValue); // Imposta il conteggio ricevuto dalla scheda
               }
             });
             
