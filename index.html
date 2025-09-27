@@ -224,17 +224,17 @@
                 const diameterMm = value.getUint16(0, true); // Little Endian
                 const count = value.getUint32(2, true); // Little Endian
                 
-                const diameterCm = (diameterMm / 10).toFixed(1);
+                const diameterCm = (diameterMm / 10).toFixed(1).replace('.', ',');
                 const currentLengthCm = lengthCmRef.current || 0;
-                const radiusCm = parseFloat(diameterCm) / 2;
+                const radiusCm = parseFloat((diameterMm / 10).toFixed(1)) / 2;
                 
                 const volumeCm3 = Math.PI * Math.pow(radiusCm, 2) * parseFloat(currentLengthCm);
-                const volume = (volumeCm3 / 1000000).toFixed(4); // Convert cm³ to m³
+                const volume = (volumeCm3 / 1000000).toFixed(4).replace('.', ','); // Convert cm³ to m³
 
                 const newMeasurement = {
                     num: count,
                     diameter: diameterCm,
-                    length: parseFloat(currentLengthCm).toFixed(1),
+                    length: parseFloat(currentLengthCm).toFixed(1).replace('.', ','),
                     volume: volume,
                 };
                 
