@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ttgo-reader-v2'; // Versione incrementata per forzare l'aggiornamento
+const CACHE_NAME = 'ttgo-reader-v3'; // Incremented version to force update
 const APP_SHELL_URLS = [
   './',
   './index.html',
