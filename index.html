@@ -145,11 +145,14 @@
 
             await characteristic.startNotifications();
             characteristic.addEventListener('characteristicvaluechanged', (event) => {
-              const target = event.target;
-              const value = target.value;
-              if (value) {
+              const value = event.target.value;
+              // Ensure we have at least 2 bytes of data to read
+              if (value && value.byteLength >= 2) {
+                // Read the value as a 16-bit unsigned integer (in millimeters)
                 const mmValue = value.getUint16(0, true); 
+                // Convert millimeters to centimeters
                 const cmValue = mmValue / 10.0;
+                // Update the state with the value in centimeters
                 setMeasurement(cmValue);
               }
             });
