@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-t">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTGO Volume Calculator</title>
-    <link rel="manifest" href="manifest.json">
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <title>TTGO Bluetooth Reader v05</title>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link rel="manifest" href="manifest.json">
     <style>
         :root {
             --bg-color: #0f172a;
@@ -16,20 +16,21 @@
             --primary-color: #38bdf8;
             --secondary-color: #1e293b;
             --border-color: #334155;
-            --success-color: #4ade80;
-            --error-color: #f87171;
-            --warning-color: #facc15;
+            --success-color: #22c55e;
+            --error-color: #ef4444;
+            --disabled-color: #475569;
         }
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            margin: 0;
-            padding: 1rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: flex-start;
             min-height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            box-sizing: border-box;
         }
         #root {
             width: 100%;
@@ -39,11 +40,13 @@
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
+            padding: 1.5rem;
+            background-color: var(--secondary-color);
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
         }
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            text-align: center;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 1rem;
         }
@@ -52,274 +55,303 @@
             font-size: 1.5rem;
             color: var(--primary-color);
         }
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 0.5rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+        .header p {
+            margin: 0.25rem 0 0;
+            font-size: 0.9rem;
+            color: #94a3b8;
         }
-        .btn-connect { background-color: var(--primary-color); color: var(--bg-color); }
-        .btn-connect:hover { background-color: #67cff5; }
-        .btn-disconnect { background-color: var(--error-color); color: var(--bg-color); }
-        .btn-disconnect:hover { background-color: #f98e8e; }
-        .btn-save { background-color: var(--success-color); color: var(--bg-color); }
-        .btn-save:hover { background-color: #75e89d; }
-        .btn:disabled { background-color: var(--border-color); color: #64748b; cursor: not-allowed; }
-        
-        .status { font-style: italic; color: #94a3b8; text-align: center; }
+        .controls, .inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
         .input-group {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
-            background-color: var(--secondary-color);
-            padding: 1rem;
-            border-radius: 0.5rem;
-        }
-        .form-control {
-            display: flex;
-            flex-direction: column;
             gap: 0.5rem;
         }
-        .form-control label {
+        .input-group label {
             font-weight: 500;
         }
-        .form-control input {
+        .input-group input {
             background-color: var(--bg-color);
-            border: 1px solid var(--border-color);
             color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
             padding: 0.75rem;
-            border-radius: 0.5rem;
             font-size: 1rem;
         }
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
+        }
+        button {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            font-weight: bold;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        button:hover {
+            background-color: #7dd3fc;
+        }
+        button:disabled {
+            background-color: var(--disabled-color);
+            cursor: not-allowed;
+        }
+        .btn-disconnect {
+            background-color: var(--error-color);
+        }
+        .btn-disconnect:hover {
+            background-color: #f87171;
+        }
         .table-container {
-            width: 100%;
             overflow-x: auto;
-            max-height: 50vh;
             border: 1px solid var(--border-color);
-            border-radius: 0.5rem;
+            border-radius: 0.375rem;
         }
         table {
             width: 100%;
             border-collapse: collapse;
+            text-align: left;
         }
         th, td {
             padding: 0.75rem 1rem;
-            text-align: left;
             border-bottom: 1px solid var(--border-color);
         }
         thead {
-            position: sticky;
-            top: 0;
-            background-color: var(--secondary-color);
+            background-color: #1e293b;
         }
-        tbody tr:nth-child(even) {
-            background-color: #1a2436;
+        th {
+            font-weight: 600;
+            color: #cbd5e1;
         }
-        td:nth-child(1), th:nth-child(1) { text-align: center; }
-        td:nth-child(2), th:nth-child(2) { text-align: right; }
-        td:nth-child(3), th:nth-child(3) { text-align: right; }
-        td:nth-child(4), th:nth-child(4) { text-align: right; font-weight: bold; color: var(--primary-color); }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .dot-disconnected { background-color: var(--error-color); }
+        .dot-connecting { background-color: #f59e0b; }
+        .dot-connected { background-color: var(--success-color); }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
-
         const SERVICE_UUID = "0000181a-0000-1000-8000-00805f9b34fb";
         const CHARACTERISTIC_UUID = "00002a6e-0000-1000-8000-00805f9b34fb";
-        const CONNECTION_STATUS = {
-            DISCONNECTED: 'DISCONNECTED',
-            CONNECTING: 'CONNECTING',
-            CONNECTED: 'CONNECTED',
-            ERROR: 'ERROR'
-        };
+        
+        const App = () => {
+            const [connectionStatus, setConnectionStatus] = React.useState('disconnected');
+            const [device, setDevice] = React.useState(null);
+            const [measurements, setMeasurements] = React.useState([]);
+            const [fileName, setFileName] = React.useState('');
+            const [lengthCm, setLengthCm] = React.useState('');
 
-        function App() {
-            const [connectionStatus, setConnectionStatus] = useState(CONNECTION_STATUS.DISCONNECTED);
-            const [device, setDevice] = useState(null);
-            const [tableData, setTableData] = useState([]);
-            const [fileName, setFileName] = useState('');
-            const [lengthCm, setLengthCm] = useState('');
+            // Ref to solve stale closure problem in notification handler
+            const lengthCmRef = React.useRef(lengthCm);
 
-            useEffect(() => {
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.register('sw.js').catch(err => {
-                        console.error('Service Worker registration failed:', err);
-                    });
-                }
-            }, []);
-            
-            const handleConnect = async () => {
-                if (!navigator.bluetooth) {
-                    alert('Web Bluetooth API non è disponibile su questo browser.');
-                    return;
-                }
-                setConnectionStatus(CONNECTION_STATUS.CONNECTING);
-                try {
-                    const btDevice = await navigator.bluetooth.requestDevice({
-                        filters: [{ services: [SERVICE_UUID] }],
-                    });
-                    setDevice(btDevice);
-                    btDevice.addEventListener('gattserverdisconnected', onDisconnect);
-                    const server = await btDevice.gatt.connect();
-                    const service = await server.getPrimaryService(SERVICE_UUID);
-                    const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
-                    await characteristic.startNotifications();
-                    characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
-                    setConnectionStatus(CONNECTION_STATUS.CONNECTED);
-                } catch (error) {
-                    console.error('Errore di connessione Bluetooth:', error);
-                    setConnectionStatus(CONNECTION_STATUS.ERROR);
-                }
-            };
-            
-            const handleDisconnect = () => {
+            React.useEffect(() => {
+                lengthCmRef.current = lengthCm;
+            }, [lengthCm]);
+
+            const handleDisconnect = async () => {
                 if (device && device.gatt.connected) {
-                    device.gatt.disconnect();
-                } else {
-                   onDisconnect();
+                    await device.gatt.disconnect();
                 }
-            };
-
-            const onDisconnect = () => {
+                setConnectionStatus('disconnected');
                 setDevice(null);
-                setConnectionStatus(CONNECTION_STATUS.DISCONNECTED);
-                setTableData([]); // Pulisce i dati alla disconnessione
+                setMeasurements([]);
+                console.log('Device disconnected.');
             };
 
             const handleNotifications = (event) => {
                 const value = event.target.value;
-                if (value.byteLength < 6) return; // Controllo di sicurezza
+                if (value.byteLength < 6) return;
 
                 const diameterMm = value.getUint16(0, true); // Little Endian
-                const measurementCount = value.getUint32(2, true); // Little Endian
+                const count = value.getUint32(2, true); // Little Endian
                 
-                const diameterCm = (diameterMm / 10.0).toFixed(1);
-                const currentLength = parseFloat(lengthCm) || 0;
-                const radius = parseFloat(diameterCm) / 2;
-                const volume = (Math.PI * Math.pow(radius, 2) * currentLength).toFixed(2);
+                const diameterCm = (diameterMm / 10).toFixed(1);
+                const currentLengthCm = lengthCmRef.current || 0;
+                const radiusCm = parseFloat(diameterCm) / 2;
+                
+                const volume = (Math.PI * Math.pow(radiusCm, 2) * parseFloat(currentLengthCm)).toFixed(2);
 
-                const newRow = {
-                    num: measurementCount,
+                const newMeasurement = {
+                    num: count,
                     diameter: diameterCm,
-                    length: currentLength.toFixed(1),
+                    length: parseFloat(currentLengthCm).toFixed(1),
                     volume: volume,
                 };
-
-                setTableData(prevData => [...prevData, newRow]);
+                
+                setMeasurements(prev => [...prev, newMeasurement]);
             };
 
-            const handleSaveFile = () => {
-                if (tableData.length === 0) return;
+            const handleConnect = async () => {
+                try {
+                    setConnectionStatus('connecting');
+                    console.log('Requesting Bluetooth device...');
+                    const bleDevice = await navigator.bluetooth.requestDevice({
+                        filters: [{ services: [SERVICE_UUID] }]
+                    });
 
-                // Prepara i dati per SheetJS
-                const headers = ["Num", "Diametro", "Lunghezza", "Volume"];
-                const dataForSheet = tableData.map(row => [row.num, row.diameter, row.length, row.volume]);
-                
-                const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataForSheet]);
+                    bleDevice.addEventListener('gattserverdisconnected', handleDisconnect);
+                    setDevice(bleDevice);
+
+                    console.log('Connecting to GATT Server...');
+                    const server = await bleDevice.gatt.connect();
+
+                    console.log('Getting Service...');
+                    const service = await server.getPrimaryService(SERVICE_UUID);
+
+                    console.log('Getting Characteristic...');
+                    const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+                    await characteristic.startNotifications();
+                    characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+
+                    setConnectionStatus('connected');
+                    console.log('Connected and notifications started.');
+
+                } catch (error) {
+                    console.error('Connection failed:', error);
+                    setConnectionStatus('disconnected');
+                }
+            };
+            
+            const handleSaveFile = () => {
+                if (measurements.length === 0) return;
+
+                const data = [
+                    ['Num', 'Diametro', 'Lunghezza', 'Volume'],
+                    ...measurements.map(m => [m.num, m.diameter, m.length, m.volume])
+                ];
+
+                const worksheet = XLSX.utils.aoa_to_sheet(data);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Misure");
+                
+                const finalFileName = fileName.trim() ? `${fileName.trim()}.ods` : `misure_TTGO_${new Date().toISOString().split('T')[0]}.ods`;
 
-                const finalFileName = (fileName.trim() || `misure_TTGO_${new Date().toISOString().slice(0, 10)}`) + ".ods";
+                XLSX.writeFile(workbook, finalFileName);
+            };
 
-                // Genera e scarica il file
-                XLSX.writeFile(workbook, finalFileName, { bookType: "ods" });
+            const getStatusText = () => {
+                switch(connectionStatus) {
+                    case 'connected': return 'Connesso';
+                    case 'connecting': return 'Connessione...';
+                    default: return 'Disconnesso';
+                }
             };
 
             return (
                 <div className="container">
-                    <header className="header">
-                        <h1>TTGO Volume Calculator</h1>
-                        {connectionStatus !== CONNECTION_STATUS.CONNECTED ? (
-                            <button className="btn btn-connect" onClick={handleConnect} disabled={connectionStatus === CONNECTION_STATUS.CONNECTING}>
-                                {connectionStatus === CONNECTION_STATUS.CONNECTING ? 'Connessione...' : 'Connetti Dispositivo'}
+                    <div className="header">
+                        <h1>TTGO Reader</h1>
+                        <p>
+                           <span className={`status-dot dot-${connectionStatus}`}></span>
+                           {getStatusText()}
+                        </p>
+                    </div>
+
+                    <div className="inputs">
+                        <div className="input-group">
+                            <label htmlFor="fileName">Nome file:</label>
+                            <input 
+                                id="fileName" 
+                                type="text" 
+                                value={fileName}
+                                onChange={e => setFileName(e.target.value)}
+                                placeholder="es. Misure_Lotto_1"
+                            />
+                        </div>
+                         <div className="input-group">
+                            <label htmlFor="lengthCm">Lunghezza cm:</label>
+                            <input 
+                                id="lengthCm" 
+                                type="number"
+                                value={lengthCm}
+                                onChange={e => setLengthCm(e.target.value)}
+                                placeholder="es. 120.5"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Num</th>
+                                    <th>Diametro</th>
+                                    <th>Lunghezza</th>
+                                    <th>Volume</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {measurements.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="4" style={{textAlign: 'center', color: '#94a3b8'}}>In attesa di misurazioni...</td>
+                                    </tr>
+                                ) : (
+                                    measurements.map(m => (
+                                        <tr key={m.num}>
+                                            <td>{m.num}</td>
+                                            <td>{m.diameter}</td>
+                                            <td>{m.length}</td>
+                                            <td>{m.volume}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="controls">
+                        {connectionStatus !== 'connected' ? (
+                            <button onClick={handleConnect} disabled={connectionStatus === 'connecting'}>
+                                Connetti a Dispositivo
                             </button>
                         ) : (
-                            <button className="btn btn-disconnect" onClick={handleDisconnect}>Disconnetti</button>
-                        )}
-                    </header>
-                    
-                    {connectionStatus !== CONNECTION_STATUS.CONNECTED && (
-                        <p className="status">
-                            {connectionStatus === CONNECTION_STATUS.DISCONNECTED && "Premi 'Connetti' per iniziare."}
-                            {connectionStatus === CONNECTION_STATUS.CONNECTING && "In attesa di connessione al dispositivo..."}
-                            {connectionStatus === CONNECTION_STATUS.ERROR && "Connessione fallita. Riprova."}
-                        </p>
-                    )}
-
-                    {connectionStatus === CONNECTION_STATUS.CONNECTED && (
-                        <>
-                            <div className="input-group">
-                                <div className="form-control">
-                                    <label htmlFor="filename">Nome file:</label>
-                                    <input 
-                                        type="text" 
-                                        id="filename" 
-                                        value={fileName} 
-                                        onChange={(e) => setFileName(e.target.value)} 
-                                        placeholder="Es: log_misure_01"
-                                    />
-                                </div>
-                                <div className="form-control">
-                                    <label htmlFor="length">Lunghezza cm:</label>
-                                    <input 
-                                        type="number" 
-                                        id="length" 
-                                        value={lengthCm} 
-                                        onChange={(e) => setLengthCm(e.target.value)} 
-                                        placeholder="Es: 150.5"
-                                    />
-                                </div>
-                            </div>
-
-                            <button className="btn btn-save" onClick={handleSaveFile} disabled={tableData.length === 0}>
-                                Salva File (.ods)
+                            <button onClick={handleDisconnect} className="btn-disconnect">
+                                Disconnetti
                             </button>
-                            
-                            <div className="table-container">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Num</th>
-                                            <th>Diametro (cm)</th>
-                                            <th>Lunghezza (cm)</th>
-                                            <th>Volume (cm³)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {tableData.length > 0 ? (
-                                            tableData.map((row) => (
-                                                <tr key={row.num}>
-                                                    <td>{row.num}</td>
-                                                    <td>{row.diameter}</td>
-                                                    <td>{row.length}</td>
-                                                    <td>{row.volume}</td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
-                                                    In attesa di misurazioni dal dispositivo...
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </>
-                    )}
+                        )}
+                        <button onClick={handleSaveFile} disabled={measurements.length === 0}>
+                            Salva File (.ods)
+                        </button>
+                    </div>
                 </div>
             );
-        }
+        };
 
         ReactDOM.render(<App />, document.getElementById('root'));
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                    console.log('SW registered: ', registration);
+                }).catch(registrationError => {
+                    console.log('SW registration failed: ', registrationError);
+                });
+            });
+        }
     </script>
 </body>
 </html>
