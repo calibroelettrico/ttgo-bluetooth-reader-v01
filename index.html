@@ -1,282 +1,242 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
+<html lang="it">
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TTGO Bluetooth Reader</title>
-    
-    <!-- Link al Manifest -->
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#0f172a">
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
-      }
-    }
-    </script>
-  </head>
-  <body class="bg-slate-900">
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <style>
+        body { 
+            background-color: #0f172a; 
+            color: #e2e8f0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        #root {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
     <div id="root"></div>
 
-    <script type="module">
-      import React, { useState, useCallback, useRef, useEffect, StrictMode } from 'react';
-      import ReactDOM from 'react-dom/client';
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
 
-      // --- Constants ---
-      const TTGO_SERVICE_UUID = '0000181a-0000-1000-8000-00805f9b34fb';
-      const MEASUREMENT_CHARACTERISTIC_UUID = '00002a6e-0000-1000-8000-00805f9b34fb';
-      const ConnectionStatus = {
-        DISCONNECTED: 'DISCONNECTED',
-        CONNECTING: 'CONNECTING',
-        CONNECTED: 'CONNECTED',
-        ERROR: 'ERROR',
-      };
-
-      // --- Icons ---
-      const BluetoothIcon = ({ className }) => (
-        React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round' },
-          React.createElement('path', { d: 'm7 7 10 10-5 5V2l5 5L7 17' })
-        )
-      );
-
-      const LinkIcon = ({ className }) => (
-        React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round' },
-          React.createElement('path', { d: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72' }),
-          React.createElement('path', { d: 'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72' })
-        )
-      );
-
-      const UnlinkIcon = ({ className }) => (
-        React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round' },
-          React.createElement('path', { d: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72' }),
-          React.createElement('path', { d: 'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72' }),
-          React.createElement('line', { x1: '2', y1: '2', x2: '22', y2: '22' })
-        )
-      );
-
-      // --- MeasurementDisplay Component ---
-      const MeasurementDisplay = ({ measurement }) => {
-        const MAX_DISPLAY_CM = 200;
-        const displayValue = measurement ?? 0;
-        const percentage = Math.min((displayValue / MAX_DISPLAY_CM) * 100, 100);
-
-        return (
-          React.createElement('div', { className: 'relative w-80 h-80 flex items-center justify-center' },
-            React.createElement('svg', { className: 'absolute w-full h-full transform -rotate-90', viewBox: '0 0 120 120' },
-              React.createElement('circle', { cx: '60', cy: '60', r: '54', fill: 'none', strokeWidth: '12', className: 'stroke-slate-700' }),
-              React.createElement('circle', {
-                cx: '60', cy: '60', r: '54', fill: 'none', strokeWidth: '12',
-                className: 'stroke-cyan-500 transition-all duration-500 ease-out',
-                strokeDasharray: Math.PI * 108,
-                strokeDashoffset: Math.PI * 108 * (1 - percentage / 100),
-                strokeLinecap: 'round'
-              })
-            ),
-            React.createElement('div', { className: 'z-10 text-center' },
-              measurement !== null ? (
-                React.createElement(React.Fragment, null,
-                  React.createElement('span', { className: 'text-8xl font-bold text-white tracking-tighter' }, measurement.toFixed(1)),
-                  React.createElement('span', { className: 'text-3xl font-light text-slate-400 ml-2' }, 'cm')
-                )
-              ) : (
-                React.createElement('span', { className: 'text-4xl font-light text-slate-500' }, '--')
-              )
-            )
-          )
-        );
-      };
-
-      // --- App Component ---
-      const App = () => {
-        const [status, setStatus] = useState(ConnectionStatus.DISCONNECTED);
-        const [measurement, setMeasurement] = useState(null);
-        const [measurementCount, setMeasurementCount] = useState(0);
-        const [error, setError] = useState(null);
-
-        const deviceRef = useRef(null);
-        const characteristicRef = useRef(null);
-
-        const handleDisconnectEvent = useCallback(() => {
-          setStatus(ConnectionStatus.DISCONNECTED);
-          setMeasurement(null);
-          setMeasurementCount(0); // Reset counter on disconnect
-          deviceRef.current = null;
-          characteristicRef.current = null;
-        }, []);
-
-        useEffect(() => {
-          return () => {
-            if (deviceRef.current?.gatt?.connected) {
-              deviceRef.current.gatt.disconnect();
-            }
-          };
-        }, []);
-
-        const handleConnect = useCallback(async () => {
-          if (!navigator.bluetooth) {
-            setError("Web Bluetooth API is not available. Try Chrome on Android.");
-            setStatus(ConnectionStatus.ERROR);
-            return;
-          }
-
-          setStatus(ConnectionStatus.CONNECTING);
-          setError(null);
-
-          try {
-            const device = await navigator.bluetooth.requestDevice({
-              filters: [{ services: [TTGO_SERVICE_UUID] }],
-              optionalServices: [TTGO_SERVICE_UUID],
-            });
-
-            deviceRef.current = device;
-            device.addEventListener('gattserverdisconnected', handleDisconnectEvent);
-            
-            const server = await device.gatt?.connect();
-            if (!server) throw new Error("Could not connect to GATT server");
-
-            const service = await server.getPrimaryService(TTGO_SERVICE_UUID);
-            const characteristic = await service.getCharacteristic(MEASUREMENT_CHARACTERISTIC_UUID);
-            characteristicRef.current = characteristic;
-
-            await characteristic.startNotifications();
-            characteristic.addEventListener('characteristicvaluechanged', (event) => {
-              const target = event.target;
-              const value = target.value;
-              // --- MODIFICA CHIAVE: Legge un pacchetto di 6 byte ---
-              if (value && value.byteLength >= 6) {
-                // Primi 2 byte: misurazione in mm (Little Endian)
-                const mmValue = value.getUint16(0, true); 
-                const cmValue = mmValue / 10.0;
-                
-                // Successivi 4 byte: conteggio (Little Endian)
-                const countValue = value.getUint32(2, true);
-
-                setMeasurement(cmValue);
-                setMeasurementCount(countValue); // Imposta il conteggio ricevuto dalla scheda
-              }
-            });
-            
-            setStatus(ConnectionStatus.CONNECTED);
-
-          } catch (err) {
-            console.error(err);
-            setError(err.message || "Failed to connect.");
-            setStatus(ConnectionStatus.ERROR);
-          }
-        }, [handleDisconnectEvent]);
-
-        const handleDisconnect = useCallback(() => {
-          if (deviceRef.current?.gatt?.connected) {
-            deviceRef.current.gatt.disconnect();
-          } else {
-            handleDisconnectEvent();
-          }
-        }, [handleDisconnectEvent]);
-
-        const renderContent = () => {
-          switch (status) {
-            case ConnectionStatus.CONNECTING:
-              return (
-                React.createElement('div', { className: 'text-center' },
-                  React.createElement('div', { className: 'animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-500 mx-auto' }),
-                  React.createElement('p', { className: 'text-slate-400 mt-4' }, 'Connecting... check for a prompt.')
-                )
-              );
-
-            case ConnectionStatus.CONNECTED:
-              return (
-                React.createElement(React.Fragment, null,
-                  React.createElement(MeasurementDisplay, { measurement: measurement }),
-                  React.createElement('p', { className: 'text-green-400 font-medium my-4 flex items-center' },
-                      React.createElement(LinkIcon, { className: 'w-5 h-5 mr-2' }),
-                      `Connected to ${deviceRef.current?.name || 'TTGO Device'}`
-                  ),
-                  React.createElement('button', {
-                    onClick: handleDisconnect,
-                    className: 'mt-4 px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-lg hover:bg-red-700 transition-colors flex items-center'
-                  },
-                    React.createElement(UnlinkIcon, { className: 'w-5 h-5 mr-2' }),
-                    'Disconnect'
-                  )
-                )
-              );
-
-            case ConnectionStatus.ERROR:
-              return (
-                React.createElement('div', { className: 'text-center p-4 bg-red-900/50 rounded-lg border border-red-700' },
-                  React.createElement('p', { className: 'text-red-400 font-bold' }, 'Connection Error'),
-                  React.createElement('p', { className: 'text-slate-300 mt-2' }, error),
-                  React.createElement('button', {
-                    onClick: () => setStatus(ConnectionStatus.DISCONNECTED),
-                    className: 'mt-6 px-6 py-2 bg-slate-600 text-white font-bold rounded-lg hover:bg-slate-700 transition-colors'
-                  },
-                    'Try Again'
-                  )
-                )
-              );
-            
-            case ConnectionStatus.DISCONNECTED:
-            default:
-              return (
-                React.createElement('div', { className: 'text-center' },
-                  React.createElement('h2', { className: 'text-4xl font-bold text-white' }, 'TTGO Bluetooth Reader'),
-                  React.createElement('p', { className: 'text-slate-400 mt-2 mb-8' }, 'Ready to receive measurements.'),
-                  React.createElement('button', {
-                    onClick: handleConnect,
-                    className: 'px-8 py-4 bg-cyan-600 text-white text-xl font-bold rounded-full shadow-lg hover:bg-cyan-700 hover:scale-105 transform transition-all duration-300 flex items-center mx-auto'
-                  },
-                    React.createElement(BluetoothIcon, { className: 'w-6 h-6 mr-3' }),
-                    'Connect to Device'
-                  )
-                )
-              );
-          }
+        // --- CONSTANTS ---
+        const SERVICE_UUID = "0000181a-0000-1000-8000-00805f9b34fb";
+        const CHARACTERISTIC_UUID = "00002a6e-0000-1000-8000-00805f9b34fb";
+        const ConnectionStatus = {
+            DISCONNECTED: 'DISCONNECTED',
+            CONNECTING: 'CONNECTING',
+            CONNECTED: 'CONNECTED',
+            ERROR: 'ERROR',
         };
 
-        return (
-          React.createElement('div', { className: 'min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-4 font-sans relative' },
-              React.createElement('div', { className: 'absolute top-4 left-4' },
-                status === ConnectionStatus.CONNECTED && measurementCount > 0 && (
-                  React.createElement('p', { className: 'text-slate-400 font-mono text-lg' },
-                    `Misurazione n. ${measurementCount}`
-                  )
-                )
-              ),
-              React.createElement('div', { className: 'w-full max-w-md flex flex-col items-center justify-center' },
-                  renderContent()
-              ),
-              React.createElement('footer', { className: 'absolute bottom-4 text-center text-slate-600 text-sm' },
-                  React.createElement('p', null, 'Ensure your TTGO device is powered on and advertising the correct Bluetooth service.'),
-                  React.createElement('p', null, `Service UUID: ${TTGO_SERVICE_UUID}`)
-              )
-          )
+        // --- ICONS ---
+        const BluetoothIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m7 7 10 10-5 5V2l5 5L7 17" />
+            </svg>
         );
-      };
+        const WifiOffIcon = () => (
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="1" y1="1" x2="23" y2="23" />
+                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+                <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                <line x1="12" y1="20" x2="12.01" y2="20" />
+            </svg>
+        );
 
-      // --- Render App ---
-      const rootElement = document.getElementById('root');
-      if (!rootElement) throw new Error('Failed to find the root element');
-      const root = ReactDOM.createRoot(rootElement);
-      root.render(
-        React.createElement(StrictMode, null, React.createElement(App))
-      );
-    </script>
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [connectionStatus, setConnectionStatus] = useState(ConnectionStatus.DISCONNECTED);
+            const [device, setDevice] = useState(null);
+            const [measurement, setMeasurement] = useState(null);
+            const [measurementCount, setMeasurementCount] = useState(0);
+            const [error, setError] = useState('');
 
-    <!-- Registrazione del Service Worker -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').then(registration => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-          }, err => {
-            console.log('ServiceWorker registration failed: ', err);
-          });
-        });
-      }
+            const handleNotifications = useCallback((event) => {
+                const value = event.target.value;
+                if (value.byteLength < 6) {
+                    console.error("Received data is too short. Expected 6 bytes.");
+                    return;
+                }
+                
+                // 2 byte per la distanza (uint16_t Little Endian)
+                const distanceMillimeters = value.getUint16(0, true); 
+                // 4 byte per il conteggio (uint32_t Little Endian)
+                const count = value.getUint32(2, true);
+
+                const distanceCm = distanceMillimeters / 10.0;
+                
+                console.log(`Received: ${distanceCm.toFixed(1)} cm, Count: ${count}`);
+                setMeasurement(distanceCm);
+                setMeasurementCount(count);
+            }, []);
+            
+            const onDisconnected = useCallback(() => {
+                console.log('Device disconnected.');
+                setDevice(null);
+                setConnectionStatus(ConnectionStatus.DISCONNECTED);
+                setMeasurement(null);
+                setMeasurementCount(0);
+            }, []);
+
+            const handleConnect = async () => {
+                if (!navigator.bluetooth) {
+                    setError("Web Bluetooth API not available on this browser.");
+                    setConnectionStatus(ConnectionStatus.ERROR);
+                    return;
+                }
+                setConnectionStatus(ConnectionStatus.CONNECTING);
+                setError('');
+                try {
+                    const btDevice = await navigator.bluetooth.requestDevice({
+                        filters: [{ services: [SERVICE_UUID] }],
+                        optionalServices: [SERVICE_UUID]
+                    });
+
+                    btDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                    setDevice(btDevice);
+
+                    const server = await btDevice.gatt.connect();
+                    const service = await server.getPrimaryService(SERVICE_UUID);
+                    const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+                    await characteristic.startNotifications();
+                    characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+                    
+                    setConnectionStatus(ConnectionStatus.CONNECTED);
+                    console.log("Connected and listening for notifications...");
+
+                } catch (err) {
+                    console.error("Connection failed:", err);
+                    setError(err.message);
+                    setConnectionStatus(ConnectionStatus.ERROR);
+                    setDevice(null);
+                }
+            };
+
+            const handleDisconnect = () => {
+                if (device && device.gatt.connected) {
+                    device.gatt.disconnect();
+                } else {
+                    onDisconnected(); // Cleanup state even if not formally connected
+                }
+            };
+
+            const renderContent = () => {
+                switch (connectionStatus) {
+                    case ConnectionStatus.CONNECTED:
+                        return (
+                            <div style={{ position: 'relative', width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                                {measurementCount > 0 && (
+                                    <div style={{ position: 'absolute', top: '2rem', left: '2rem', fontSize: '1.25rem', color: '#94a3b8' }}>
+                                        Misurazione n. {measurementCount}
+                                    </div>
+                                )}
+                                {measurement !== null ? (
+                                    <div style={{ textAlign: 'center' }}>
+                                        <p style={{ fontSize: '7rem', fontWeight: 'bold', margin: 0, lineHeight: 1 }}>
+                                            {measurement.toFixed(1)}
+                                        </p>
+                                        <p style={{ fontSize: '2rem', color: '#94a3b8', margin: 0 }}>cm</p>
+                                    </div>
+                                ) : (
+                                    <p style={{ fontSize: '1.5rem', color: '#64748b' }}>In attesa di misurazione...</p>
+                                )}
+                                <button
+                                    onClick={handleDisconnect}
+                                    style={{
+                                        position: 'absolute', bottom: '2rem',
+                                        background: '#334155', color: 'white',
+                                        border: 'none', borderRadius: '50%',
+                                        width: '4rem', height: '4rem',
+                                        display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer'
+                                    }}>
+                                    <WifiOffIcon />
+                                </button>
+                            </div>
+                        );
+                    case ConnectionStatus.CONNECTING:
+                        return <p style={{ fontSize: '1.5rem' }}>Connessione in corso...</p>;
+                    case ConnectionStatus.ERROR:
+                        return (
+                            <div style={{ textAlign: 'center', padding: '1rem' }}>
+                                <p style={{ fontSize: '1.5rem', color: '#f87171' }}>Errore</p>
+                                <p style={{ color: '#fda4af', maxWidth: '300px' }}>{error}</p>
+                                <button onClick={() => setConnectionStatus(ConnectionStatus.DISCONNECTED)} style={{ ...buttonStyle, background: '#475569', marginTop: '1rem' }}>
+                                    Riprova
+                                </button>
+                            </div>
+                        );
+                    default: // DISCONNECTED
+                        return (
+                            <div style={{ textAlign: 'center' }}>
+                                <h1 style={{ fontWeight: 'normal', marginBottom: '2rem' }}>TTGO Reader</h1>
+                                <button onClick={handleConnect} style={buttonStyle}>
+                                    <BluetoothIcon />
+                                    <span style={{ marginLeft: '0.75rem' }}>Connetti Dispositivo</span>
+                                </button>
+                            </div>
+                        );
+                }
+            };
+
+            const buttonStyle = {
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1rem 2rem',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '9999px',
+                fontSize: '1.125rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                transition: 'background-color 0.2s',
+            };
+
+            return (
+                <main style={{ width: '100%', maxWidth: '400px', padding: '1rem' }}>
+                    {renderContent()}
+                </main>
+            );
+        };
+
+        // --- SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(registration => {
+                    console.log('SW registered: ', registration);
+                }).catch(registrationError => {
+                    console.log('SW registration failed: ', registrationError);
+                });
+            });
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
     </script>
-  </body>
+</body>
 </html>
