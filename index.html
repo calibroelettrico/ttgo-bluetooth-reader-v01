@@ -228,7 +228,8 @@
                 const currentLengthCm = lengthCmRef.current || 0;
                 const radiusCm = parseFloat(diameterCm) / 2;
                 
-                const volume = (Math.PI * Math.pow(radiusCm, 2) * parseFloat(currentLengthCm)).toFixed(2);
+                const volumeCm3 = Math.PI * Math.pow(radiusCm, 2) * parseFloat(currentLengthCm);
+                const volume = (volumeCm3 / 1000000).toFixed(2); // Convert cm³ to m³
 
                 const newMeasurement = {
                     num: count,
@@ -276,7 +277,7 @@
                 if (measurements.length === 0) return;
 
                 const data = [
-                    ['Num', 'Diametro (cm)', 'Lunghezza (cm)', 'Volume (cm³)'],
+                    ['Num', 'Diametro (cm)', 'Lunghezza (cm)', 'Volume (m³)'],
                     ...measurements.map(m => [m.num, m.diameter, m.length, m.volume])
                 ];
 
@@ -338,7 +339,7 @@
                                         <th>Num</th>
                                         <th>Diametro (cm)</th>
                                         <th>Lunghezza (cm)</th>
-                                        <th>Volume (cm³)</th>
+                                        <th>Volume (m³)</th>
                                     </tr>
                                 </thead>
                             </table>
