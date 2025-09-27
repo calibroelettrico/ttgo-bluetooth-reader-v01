@@ -49,11 +49,20 @@
             text-align: center;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 0.75rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
         }
         .header h1 {
             margin: 0;
             font-size: 1.5rem;
             color: var(--primary-color);
+        }
+        .version {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            font-weight: normal;
         }
         .header p {
             margin: 0.25rem 0 0;
@@ -339,6 +348,7 @@
                 <div className="container">
                     <div className="header">
                         <h1>TTGO Reader</h1>
+                        <span className="version">v0.6</span>
                         <p>
                            <span className={`status-dot dot-${connectionStatus}`}></span>
                            {getStatusText()}
