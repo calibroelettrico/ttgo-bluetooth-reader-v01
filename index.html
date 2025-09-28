@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTGO Bluetooth Reader v0.50</title>
+    <title>TTGO Bluetooth Reader v0.51</title>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -292,20 +292,28 @@
                 const volumeCm3 = Math.PI * Math.pow(radiusCm, 2) * parseFloat(currentLengthCm);
                 const volume = (volumeCm3 / 1000000).toFixed(4).replace('.', ','); // Convert cm³ to m³
 
-                const newMeasurement = {
-                    num: count,
-                    diameter: diameterCm,
-                    length: parseFloat(currentLengthCm).toFixed(1).replace('.', ','),
-                    volume: volume,
-                };
-                
-                // If a row is selected, update it instead of adding new measurement
+                // If a row is selected, update it with new data but keep original number
                 if (selectedRow !== null) {
-                    setMeasurements(prev => prev.map((m, index) => 
-                        index === selectedRow ? newMeasurement : m
-                    ));
+                    setMeasurements(prev => prev.map((m, index) => {
+                        if (index === selectedRow) {
+                            return {
+                                num: m.num, // Keep original number
+                                diameter: diameterCm,
+                                length: parseFloat(currentLengthCm).toFixed(1).replace('.', ','),
+                                volume: volume,
+                            };
+                        }
+                        return m;
+                    }));
                     setSelectedRow(null); // Clear selection after update
                 } else {
+                    // Normal case: add new measurement
+                    const newMeasurement = {
+                        num: count,
+                        diameter: diameterCm,
+                        length: parseFloat(currentLengthCm).toFixed(1).replace('.', ','),
+                        volume: volume,
+                    };
                     setMeasurements(prev => [...prev, newMeasurement]);
                 }
             };
@@ -470,7 +478,7 @@
                 <div className="container">
                     <div className="header">
                         <h1>TTGO Reader</h1>
-                        <span className="version">v0.50</span>
+                        <span className="version">v0.51</span>
                         <p>
                            <span className={`status-dot dot-${connectionStatus}`}></span>
                            {getStatusText()}
