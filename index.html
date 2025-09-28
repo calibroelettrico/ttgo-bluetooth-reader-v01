@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTGO Bluetooth Reader v0.44</title>
+    <title>TTGO Bluetooth Reader v0.50</title>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="manifest" href="manifest.json">
     <style>
         :root {
@@ -251,7 +252,6 @@
             const [editingCell, setEditingCell] = React.useState(null);
             const [tempValue, setTempValue] = React.useState('');
             const [selectedRow, setSelectedRow] = React.useState(null);
-            const [showFormattedTable, setShowFormattedTable] = React.useState(false);
 
             // Ref to solve stale closure problem in notification handler
             const lengthCmRef = React.useRef(lengthCm);
@@ -404,137 +404,58 @@
             };
             
             const handleSaveFile = () => {
-                console.log('Showing formatted table');
-                if (measurements.length === 0) {
-                    alert('Nessuna misurazione da mostrare!');
-                    return;
-                }
-                setShowFormattedTable(true);
-            };
+                if (measurements.length === 0) return;
 
-            const FormattedTable = () => {
-                const firstBlock = measurements.slice(0, 60);
-                const secondBlock = measurements.slice(60, 120);
+                // Create empty worksheet
+                const ws = XLSX.utils.aoa_to_sheet([]);
                 
+                // Add headers for first block (A1:D1)
+                XLSX.utils.sheet_add_aoa(ws, [['Num', 'Diametro (cm)', 'Lunghezza (cm)', 'Volume (m³)']], {origin: 'A1'});
+                
+                // Add headers for second block (E1:H1)
+                XLSX.utils.sheet_add_aoa(ws, [['Num', 'Diametro (cm)', 'Lunghezza (cm)', 'Volume (m³)']], {origin: 'E1'});
+                
+                // Split measurements into two groups
+                const firstBlock = measurements.slice(0, 60);  // 1-60
+                const secondBlock = measurements.slice(60, 120); // 61-120
+                
+                // Add first block data (A2:D61)
+                if (firstBlock.length > 0) {
+                    const firstBlockData = firstBlock.map(m => [m.num, m.diameter, m.length, m.volume]);
+                    XLSX.utils.sheet_add_aoa(ws, firstBlockData, {origin: 'A2'});
+                }
+                
+                // Add second block data (E2:H61)
+                if (secondBlock.length > 0) {
+                    const secondBlockData = secondBlock.map(m => [m.num, m.diameter, m.length, m.volume]);
+                    XLSX.utils.sheet_add_aoa(ws, secondBlockData, {origin: 'E2'});
+                }
+                
+                // Calculate total volume (convert comma to dot for calculation)
                 const totalVolume = measurements.reduce((sum, m) => {
                     return sum + parseFloat(m.volume.replace(',', '.'));
                 }, 0);
+                
+                // Add "Totale m3" label in I63
+                XLSX.utils.sheet_add_aoa(ws, [['Totale m3']], {origin: 'I63'});
+                
+                // Add total volume in I64 (with comma notation)
+                XLSX.utils.sheet_add_aoa(ws, [[totalVolume.toFixed(4).replace('.', ',')]], {origin: 'I64'});
+                
+                // Add "10% corteccia" label in H65
+                XLSX.utils.sheet_add_aoa(ws, [['10% corteccia']], {origin: 'H65'});
+                
+                // Add 90% of total volume in I65 (with comma notation)
                 const volumeAfterBark = totalVolume * 0.9;
+                XLSX.utils.sheet_add_aoa(ws, [[volumeAfterBark.toFixed(4).replace('.', ',')]], {origin: 'I65'});
 
-                return (
-                    <div style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        backgroundColor: 'white',
-                        zIndex: 10000,
-                        padding: '20px',
-                        boxSizing: 'border-box',
-                        overflow: 'auto',
-                        fontFamily: 'Arial, sans-serif'
-                    }}>
-                        <div style={{ textAlign: 'right', marginBottom: '10px' }}>
-                            <button 
-                                onClick={() => setShowFormattedTable(false)}
-                                style={{
-                                    background: '#ef4444',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '10px 20px',
-                                    borderRadius: '5px',
-                                    cursor: 'pointer',
-                                    fontSize: '16px'
-                                }}
-                            >
-                                ✕ Chiudi
-                            </button>
-                        </div>
-                        
-                        <h1 style={{ color: '#366092', textAlign: 'center', marginBottom: '30px' }}>
-                            Misure TTGO - {fileName.trim() || new Date().toISOString().split('T')[0]}
-                        </h1>
-                        
-                        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-                            <div style={{ flex: 1 }}>
-                                <table style={{ borderCollapse: 'collapse', width: '100%', margin: '10px 0' }}>
-                                    <thead>
-                                        <tr>
-                                            <th style={{ backgroundColor: '#366092', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '8px 12px', border: '1px solid #000' }}>Num</th>
-                                            <th style={{ backgroundColor: '#366092', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '8px 12px', border: '1px solid #000' }}>Diametro (cm)</th>
-                                            <th style={{ backgroundColor: '#366092', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '8px 12px', border: '1px solid #000' }}>Lunghezza (cm)</th>
-                                            <th style={{ backgroundColor: '#366092', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '8px 12px', border: '1px solid #000' }}>Volume (m³)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {firstBlock.map((m, i) => (
-                                            <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#f8f9fa' : '#e9ecef' }}>
-                                                <td style={{ padding: '6px 12px', border: '1px solid #ccc', textAlign: 'right' }}>{m.num}</td>
-                                                <td style={{ padding: '6px 12px', border: '1px solid #ccc', textAlign: 'right' }}>{m.diameter}</td>
-                                                <td style={{ padding: '6px 12px', border: '1px solid #ccc', textAlign: 'right' }}>{m.length}</td>
-                                                <td style={{ padding: '6px 12px', border: '1px solid #ccc', textAlign: 'right' }}>{m.volume}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            <div style={{ flex: 1 }}>
-                                <table style={{ borderCollapse: 'collapse', width: '100%', margin: '10px 0' }}>
-                                    <thead>
-                                        <tr>
-                                            <th style={{ backgroundColor: '#366092', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '8px 12px', border: '1px solid #000' }}>Num</th>
-                                            <th style={{ backgroundColor: '#366092', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '8px 12px', border: '1px solid #000' }}>Diametro (cm)</th>
-                                            <th style={{ backgroundColor: '#366092', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '8px 12px', border: '1px solid #000' }}>Lunghezza (cm)</th>
-                                            <th style={{ backgroundColor: '#366092', color: 'white', fontWeight: 'bold', textAlign: 'center', padding: '8px 12px', border: '1px solid #000' }}>Volume (m³)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {secondBlock.map((m, i) => (
-                                            <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#f8f9fa' : '#e9ecef' }}>
-                                                <td style={{ padding: '6px 12px', border: '1px solid #ccc', textAlign: 'right' }}>{m.num}</td>
-                                                <td style={{ padding: '6px 12px', border: '1px solid #ccc', textAlign: 'right' }}>{m.diameter}</td>
-                                                <td style={{ padding: '6px 12px', border: '1px solid #ccc', textAlign: 'right' }}>{m.length}</td>
-                                                <td style={{ padding: '6px 12px', border: '1px solid #ccc', textAlign: 'right' }}>{m.volume}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        
-                        <div style={{ marginTop: '20px' }}>
-                            <table style={{ borderCollapse: 'collapse', marginLeft: 'auto', marginRight: 0 }}>
-                                <tbody>
-                                    <tr>
-                                        <td style={{ backgroundColor: '#d4edda', fontWeight: 'bold', border: '2px solid #000', padding: '6px 12px' }}>Totale m³</td>
-                                        <td style={{ backgroundColor: '#d4edda', fontWeight: 'bold', border: '2px solid #000', padding: '6px 12px', textAlign: 'right' }}>
-                                            {totalVolume.toFixed(4).replace('.', ',')}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ backgroundColor: '#d4edda', fontWeight: 'bold', border: '2px solid #000', padding: '6px 12px' }}>10% corteccia</td>
-                                        <td style={{ backgroundColor: '#d4edda', fontWeight: 'bold', border: '2px solid #000', padding: '6px 12px', textAlign: 'right' }}>
-                                            {volumeAfterBark.toFixed(4).replace('.', ',')}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <div style={{ marginTop: '30px', padding: '15px', background: '#f0f8ff', borderLeft: '4px solid #366092' }}>
-                            <h3>📋 Come salvare:</h3>
-                            <ol>
-                                <li><strong>Seleziona tutto:</strong> Ctrl+A (o Cmd+A su Mac)</li>
-                                <li><strong>Copia:</strong> Ctrl+C (o Cmd+C su Mac)</li>
-                                <li><strong>Apri LibreOffice Calc</strong> e incolla: Ctrl+V</li>
-                                <li><strong>Salva come .ods</strong> dal menu File → Salva con nome</li>
-                            </ol>
-                            <p><em>La formattazione (bordi, colori, stili) verrà preservata automaticamente!</em></p>
-                        </div>
-                    </div>
-                );
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, ws, "Misure");
+                
+                const finalFileName = fileName.trim() ? `${fileName.trim()}.ods` : `misure_TTGO_${new Date().toISOString().split('T')[0]}.ods`;
+
+                console.log('Saving file:', finalFileName);
+                XLSX.writeFile(workbook, finalFileName);
             };
 
             const getStatusText = () => {
@@ -547,11 +468,9 @@
 
             return (
                 <div className="container">
-                    {showFormattedTable && <FormattedTable />}
-                    
                     <div className="header">
                         <h1>TTGO Reader</h1>
-                        <span className="version">v0.6</span>
+                        <span className="version">v0.50</span>
                         <p>
                            <span className={`status-dot dot-${connectionStatus}`}></span>
                            {getStatusText()}
@@ -696,7 +615,7 @@
                             </div>
                         )}
                         <button onClick={handleSaveFile} disabled={measurements.length === 0}>
-                            Mostra Tabella Formattata
+                            Salva File (.ods)
                         </button>
                     </div>
                 </div>
