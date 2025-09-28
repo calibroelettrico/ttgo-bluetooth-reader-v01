@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTGO Bluetooth Reader v0.59</title>
+    <title>TTGO Bluetooth Reader v0.63</title>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -371,18 +371,35 @@
                 setSelectedRow(newSelectedRow);
                 
                 // Send selected measurement number to TTGO
-                if (newSelectedRow !== null && writeCharacteristic && deviceConnected) {
+                if (newSelectedRow !== null && connectionStatus === 'connected') {
                     const measurementNum = measurements[newSelectedRow]?.num || 0;
-                    console.log('Sending measurement number to TTGO:', measurementNum);
+                    console.log('Attempting to send measurement number to TTGO:', measurementNum);
                     
-                    // Send 4-byte message: measurement number (uint32_t)
-                    const data = new ArrayBuffer(4);
-                    const view = new DataView(data);
-                    view.setUint32(0, measurementNum, true); // Little endian
-                    
-                    writeCharacteristic.writeValue(data).catch(err => {
-                        console.error('Error sending measurement number:', err);
-                    });
+                    if (writeCharacteristic) {
+                        console.log('Write characteristic available, sending data...');
+                        // Send 4-byte message: measurement number (uint32_t)
+                        const data = new ArrayBuffer(4);
+                        const view = new DataView(data);
+                        view.setUint32(0, measurementNum, true); // Little endian
+                        
+                        writeCharacteristic.writeValue(data).then(() => {
+                            console.log('✅ Successfully sent measurement number:', measurementNum);
+                            // Show brief success feedback
+                            const alertDiv = document.createElement('div');
+                            alertDiv.style.cssText = 'position:fixed;top:10px;right:10px;background:#22c55e;color:white;padding:10px;border-radius:5px;z-index:9999;';
+                            alertDiv.textContent = `📤 Inviato comando N.${measurementNum} a TTGO`;
+                            document.body.appendChild(alertDiv);
+                            setTimeout(() => document.body.removeChild(alertDiv), 3000);
+                        }).catch(err => {
+                            console.error('❌ Error sending measurement number:', err);
+                            alert('Errore invio comando a TTGO. Potrebbe non supportare la comunicazione bidirezionale.');
+                        });
+                    } else {
+                        console.warn('⚠️ Write characteristic not available - TTGO firmware may not support bidirectional communication');
+                        alert('TTGO non supporta comandi. Aggiorna il firmware TTGO per la comunicazione bidirezionale.');
+                    }
+                } else if (newSelectedRow !== null) {
+                    console.log('Not connected to device');
                 }
             };
 
@@ -432,10 +449,15 @@
                         console.log('Getting Write Characteristic...');
                         const writeChar = await service.getCharacteristic(WRITE_CHARACTERISTIC_UUID);
                         setWriteCharacteristic(writeChar);
-                        console.log('Write characteristic available');
+                        console.log('✅ Write characteristic found - Bidirectional communication available');
+                        // Show success message
+                        setTimeout(() => alert('✅ TTGO supporta comunicazione bidirezionale!'), 1000);
                     } catch (writeError) {
-                        console.warn('Write characteristic not available:', writeError);
+                        console.warn('⚠️ Write characteristic not found:', writeError.message);
+                        console.warn('TTGO firmware may not support bidirectional communication');
                         setWriteCharacteristic(null);
+                        // Show warning message
+                        setTimeout(() => alert('⚠️ TTGO usa firmware vecchio - solo ricezione dati disponibile'), 1000);
                     }
 
                     await readCharacteristic.startNotifications();
@@ -517,7 +539,7 @@
                 <div className="container">
                     <div className="header">
                         <h1>TTGO Reader</h1>
-                        <span className="version">v0.59</span>
+                        <span className="version">v0.63</span>
                         <p>
                            <span className={`status-dot dot-${connectionStatus}`}></span>
                            {getStatusText()}
