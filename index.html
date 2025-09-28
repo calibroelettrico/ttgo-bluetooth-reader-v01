@@ -302,7 +302,23 @@
             };
 
             const handleDeleteRow = (rowIndex) => {
-                setMeasurements(prev => prev.filter((_, index) => index !== rowIndex));
+                setMeasurements(prev => prev.map((measurement, index) => {
+                    if (index === rowIndex) {
+                        // Set diameter to 0 and recalculate volume
+                        const diameter = 0;
+                        const length = parseFloat(measurement.length.replace(',', '.'));
+                        const radiusCm = diameter / 2;
+                        const volumeCm3 = Math.PI * Math.pow(radiusCm, 2) * length;
+                        const volume = (volumeCm3 / 1000000).toFixed(4).replace('.', ',');
+                        
+                        return {
+                            ...measurement,
+                            diameter: '0,0',
+                            volume: volume
+                        };
+                    }
+                    return measurement;
+                }));
                 if (selectedRow === rowIndex) setSelectedRow(null);
             };
             React.useEffect(() => {
@@ -566,7 +582,7 @@
                                                                 e.stopPropagation();
                                                                 handleDeleteRow(index);
                                                             }}
-                                                            title="Elimina riga"
+                                                            title="Imposta diametro a 0"
                                                         >
                                                             ✕
                                                         </button>
