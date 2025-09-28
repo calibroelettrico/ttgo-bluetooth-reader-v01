@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTGO Bluetooth Reader v0.51</title>
+    <title>TTGO Bluetooth Reader v0.59</title>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -242,10 +242,12 @@
     <script type="text/babel">
         const SERVICE_UUID = "0000181a-0000-1000-8000-00805f9b34fb";
         const CHARACTERISTIC_UUID = "00002a6e-0000-1000-8000-00805f9b34fb";
+        const WRITE_CHARACTERISTIC_UUID = "00002a6f-0000-1000-8000-00805f9b34fb"; // New write characteristic
         
         const App = () => {
             const [connectionStatus, setConnectionStatus] = React.useState('disconnected');
             const [device, setDevice] = React.useState(null);
+            const [writeCharacteristic, setWriteCharacteristic] = React.useState(null);
             const [measurements, setMeasurements] = React.useState([]);
             const [fileName, setFileName] = React.useState('');
             const [lengthCm, setLengthCm] = React.useState('');
@@ -285,34 +287,43 @@
                 const diameterMm = value.getUint16(0, true); // Little Endian
                 const count = value.getUint32(2, true); // Little Endian
                 
+                console.log('TTGO notification received. Count from TTGO:', count);
+                
                 const diameterCm = (diameterMm / 10).toFixed(1).replace('.', ',');
                 const currentLengthCm = lengthCmRef.current || 0;
                 const radiusCm = parseFloat((diameterMm / 10).toFixed(1)) / 2;
                 
                 const volumeCm3 = Math.PI * Math.pow(radiusCm, 2) * parseFloat(currentLengthCm);
-                const volume = (volumeCm3 / 1000000).toFixed(4).replace('.', ','); // Convert cm³ to m³
+                const volume = (volumeCm3 / 1000000).toFixed(4).replace('.', ',');
 
-                // If a row is selected, update it with new data but keep original number
-                if (selectedRow !== null) {
+                const newMeasurementData = {
+                    diameter: diameterCm,
+                    length: parseFloat(currentLengthCm).toFixed(1).replace('.', ','),
+                    volume: volume,
+                };
+
+                // Check if this is an update to existing measurement (TTGO sends measurement number when updating)
+                const existingIndex = measurements.findIndex(m => m.num === count);
+                
+                if (existingIndex !== -1) {
+                    // Update existing measurement
+                    console.log('Updating existing measurement with num:', count, 'at index:', existingIndex);
                     setMeasurements(prev => prev.map((m, index) => {
-                        if (index === selectedRow) {
+                        if (index === existingIndex) {
                             return {
-                                num: m.num, // Keep original number
-                                diameter: diameterCm,
-                                length: parseFloat(currentLengthCm).toFixed(1).replace('.', ','),
-                                volume: volume,
+                                num: count, // Keep the measurement number
+                                ...newMeasurementData
                             };
                         }
                         return m;
                     }));
                     setSelectedRow(null); // Clear selection after update
                 } else {
-                    // Normal case: add new measurement
+                    // Add new measurement
+                    console.log('Adding new measurement with count:', count);
                     const newMeasurement = {
                         num: count,
-                        diameter: diameterCm,
-                        length: parseFloat(currentLengthCm).toFixed(1).replace('.', ','),
-                        volume: volume,
+                        ...newMeasurementData
                     };
                     setMeasurements(prev => [...prev, newMeasurement]);
                 }
@@ -355,7 +366,24 @@
             };
 
             const handleRowSelect = (rowIndex) => {
-                setSelectedRow(selectedRow === rowIndex ? null : rowIndex);
+                const newSelectedRow = selectedRow === rowIndex ? null : rowIndex;
+                console.log('Row selection changed from', selectedRow, 'to', newSelectedRow);
+                setSelectedRow(newSelectedRow);
+                
+                // Send selected measurement number to TTGO
+                if (newSelectedRow !== null && writeCharacteristic && deviceConnected) {
+                    const measurementNum = measurements[newSelectedRow]?.num || 0;
+                    console.log('Sending measurement number to TTGO:', measurementNum);
+                    
+                    // Send 4-byte message: measurement number (uint32_t)
+                    const data = new ArrayBuffer(4);
+                    const view = new DataView(data);
+                    view.setUint32(0, measurementNum, true); // Little endian
+                    
+                    writeCharacteristic.writeValue(data).catch(err => {
+                        console.error('Error sending measurement number:', err);
+                    });
+                }
             };
 
             const handleDeleteRow = (rowIndex) => {
@@ -396,11 +424,22 @@
                     console.log('Getting Service...');
                     const service = await server.getPrimaryService(SERVICE_UUID);
 
-                    console.log('Getting Characteristic...');
-                    const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+                    console.log('Getting Read Characteristic...');
+                    const readCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
 
-                    await characteristic.startNotifications();
-                    characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+                    // Try to get write characteristic for sending commands to TTGO
+                    try {
+                        console.log('Getting Write Characteristic...');
+                        const writeChar = await service.getCharacteristic(WRITE_CHARACTERISTIC_UUID);
+                        setWriteCharacteristic(writeChar);
+                        console.log('Write characteristic available');
+                    } catch (writeError) {
+                        console.warn('Write characteristic not available:', writeError);
+                        setWriteCharacteristic(null);
+                    }
+
+                    await readCharacteristic.startNotifications();
+                    readCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
 
                     setConnectionStatus('connected');
                     console.log('Connected and notifications started.');
@@ -478,7 +517,7 @@
                 <div className="container">
                     <div className="header">
                         <h1>TTGO Reader</h1>
-                        <span className="version">v0.51</span>
+                        <span className="version">v0.59</span>
                         <p>
                            <span className={`status-dot dot-${connectionStatus}`}></span>
                            {getStatusText()}
@@ -619,7 +658,7 @@
                         )}
                         {selectedRow !== null && connectionStatus === 'connected' && (
                             <div style={{padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '0.375rem', fontSize: '0.9rem'}}>
-                                📍 Riga {selectedRow + 1} selezionata - La prossima misurazione TTGO sostituirà questi dati
+                                📍 Riga {selectedRow + 1} selezionata (Num: {measurements[selectedRow]?.num}) - La prossima misurazione TTGO sostituirà questi dati
                             </div>
                         )}
                         <button onClick={handleSaveFile} disabled={measurements.length === 0}>
