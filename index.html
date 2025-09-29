@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTGO Bluetooth Reader v0.63</title>
+    <title>TTGO Bluetooth Reader v0.64title>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -429,7 +429,8 @@
                     setConnectionStatus('connecting');
                     console.log('Requesting Bluetooth device...');
                     const bleDevice = await navigator.bluetooth.requestDevice({
-                        filters: [{ services: [SERVICE_UUID] }]
+                        filters: [{ services: [SERVICE_UUID] }],
+                        optionalServices: [SERVICE_UUID] // Ensure we can access all characteristics
                     });
 
                     bleDevice.addEventListener('gattserverdisconnected', handleDisconnect);
@@ -441,23 +442,43 @@
                     console.log('Getting Service...');
                     const service = await server.getPrimaryService(SERVICE_UUID);
 
+                    // List all characteristics for debugging
+                    console.log('Discovering all characteristics...');
+                    const characteristics = await service.getCharacteristics();
+                    console.log('Found characteristics:', characteristics.length);
+                    characteristics.forEach(char => {
+                        console.log('  - UUID:', char.uuid);
+                    });
+
                     console.log('Getting Read Characteristic...');
                     const readCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
 
                     // Try to get write characteristic for sending commands to TTGO
+                    let writeChar = null;
                     try {
-                        console.log('Getting Write Characteristic...');
-                        const writeChar = await service.getCharacteristic(WRITE_CHARACTERISTIC_UUID);
+                        console.log('Attempting to get Write Characteristic with UUID:', WRITE_CHARACTERISTIC_UUID);
+                        writeChar = await service.getCharacteristic(WRITE_CHARACTERISTIC_UUID);
                         setWriteCharacteristic(writeChar);
                         console.log('✅ Write characteristic found - Bidirectional communication available');
                         // Show success message
                         setTimeout(() => alert('✅ TTGO supporta comunicazione bidirezionale!'), 1000);
                     } catch (writeError) {
                         console.warn('⚠️ Write characteristic not found:', writeError.message);
-                        console.warn('TTGO firmware may not support bidirectional communication');
-                        setWriteCharacteristic(null);
-                        // Show warning message
-                        setTimeout(() => alert('⚠️ TTGO usa firmware vecchio - solo ricezione dati disponibile'), 1000);
+                        console.warn('Trying to find it in discovered characteristics...');
+                        
+                        // Try to find it manually in the list
+                        const foundWrite = characteristics.find(c => c.uuid === WRITE_CHARACTERISTIC_UUID || c.uuid.includes('2a6f'));
+                        if (foundWrite) {
+                            console.log('Found write characteristic manually!');
+                            setWriteCharacteristic(foundWrite);
+                            writeChar = foundWrite;
+                            setTimeout(() => alert('✅ TTGO supporta comunicazione bidirezionale! (trovata manualmente)'), 1000);
+                        } else {
+                            console.warn('TTGO firmware may not support bidirectional communication');
+                            setWriteCharacteristic(null);
+                            // Show warning message
+                            setTimeout(() => alert('⚠️ TTGO usa firmware vecchio - solo ricezione dati disponibile\n\nCaratteristiche trovate: ' + characteristics.length), 1000);
+                        }
                     }
 
                     await readCharacteristic.startNotifications();
@@ -465,10 +486,12 @@
 
                     setConnectionStatus('connected');
                     console.log('Connected and notifications started.');
+                    console.log('Write characteristic available:', writeChar !== null);
 
                 } catch (error) {
                     console.error('Connection failed:', error);
                     setConnectionStatus('disconnected');
+                    alert('Errore di connessione: ' + error.message);
                 }
             };
             
@@ -539,7 +562,7 @@
                 <div className="container">
                     <div className="header">
                         <h1>TTGO Reader</h1>
-                        <span className="version">v0.63</span>
+                        <span className="version">v0.64</span>
                         <p>
                            <span className={`status-dot dot-${connectionStatus}`}></span>
                            {getStatusText()}
