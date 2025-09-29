@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTGO Bluetooth Reader v0.65</title>
+    <title>TTGO Bluetooth Reader v0.65 gem</title>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -255,13 +255,18 @@
             const [tempValue, setTempValue] = React.useState('');
             const [selectedRow, setSelectedRow] = React.useState(null);
 
-            // Ref to solve stale closure problem in notification handler
+            // Refs to solve stale closure problems in callbacks
             const lengthCmRef = React.useRef(lengthCm);
+            const selectedRowRef = React.useRef(selectedRow);
             const tableBodyRef = React.useRef(null);
 
             React.useEffect(() => {
                 lengthCmRef.current = lengthCm;
             }, [lengthCm]);
+
+            React.useEffect(() => {
+                selectedRowRef.current = selectedRow;
+            }, [selectedRow]);
 
             // Auto-scroll to bottom when new measurements arrive
             React.useEffect(() => {
@@ -302,30 +307,52 @@
                     volume: volume,
                 };
 
-                // Check if this is an update to existing measurement (TTGO sends measurement number when updating)
-                const existingIndex = measurements.findIndex(m => m.num === count);
-                
-                if (existingIndex !== -1) {
-                    // Update existing measurement
-                    console.log('Updating existing measurement with num:', count, 'at index:', existingIndex);
-                    setMeasurements(prev => prev.map((m, index) => {
-                        if (index === existingIndex) {
-                            return {
-                                num: count, // Keep the measurement number
-                                ...newMeasurementData
-                            };
-                        }
-                        return m;
-                    }));
-                    setSelectedRow(null); // Clear selection after update
+                // NEW LOGIC: If a row is selected, replace its data.
+                if (selectedRowRef.current !== null) {
+                    const updateIndex = selectedRowRef.current;
+                    console.log(`Replacing measurement at selected row index: ${updateIndex}`);
+
+                    setMeasurements(prevMeasurements => {
+                        const updatedMeasurements = [...prevMeasurements];
+                        const measurementToUpdate = updatedMeasurements[updateIndex];
+                        
+                        // Update the measurement data but keep the original number
+                        updatedMeasurements[updateIndex] = {
+                            num: measurementToUpdate.num, // Keep original 'num'
+                            ...newMeasurementData,
+                        };
+                        
+                        return updatedMeasurements;
+                    });
+                    
+                    // Deselect the row so subsequent measurements are appended
+                    setSelectedRow(null);
                 } else {
-                    // Add new measurement
-                    console.log('Adding new measurement with count:', count);
-                    const newMeasurement = {
-                        num: count,
-                        ...newMeasurementData
-                    };
-                    setMeasurements(prev => [...prev, newMeasurement]);
+                    // Original logic: update existing by matching count, or add new.
+                    const existingIndex = measurements.findIndex(m => m.num === count);
+                    
+                    if (existingIndex !== -1) {
+                        // Update existing measurement
+                        console.log('Updating existing measurement with num:', count, 'at index:', existingIndex);
+                        setMeasurements(prev => prev.map((m, index) => {
+                            if (index === existingIndex) {
+                                return {
+                                    num: count, // Keep the measurement number
+                                    ...newMeasurementData
+                                };
+                            }
+                            return m;
+                        }));
+                        setSelectedRow(null); // Clear selection after update
+                    } else {
+                        // Add new measurement
+                        console.log('Adding new measurement with count:', count);
+                        const newMeasurement = {
+                            num: count,
+                            ...newMeasurementData
+                        };
+                        setMeasurements(prev => [...prev, newMeasurement]);
+                    }
                 }
             };
 
@@ -567,7 +594,7 @@
                 <div className="container">
                     <div className="header">
                         <h1>TTGO Reader</h1>
-                        <span className="version">v0.65</span>
+                        <span className="version">v0.65 gem</span>
                         <p>
                            <span className={`status-dot dot-${connectionStatus}`}></span>
                            {getStatusText()}
