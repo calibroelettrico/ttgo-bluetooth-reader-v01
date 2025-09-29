@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTGO Bluetooth Reader v0.6</title>
+    <title>TTGO Bluetooth Reader v0.65</title>
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -447,7 +447,8 @@
                     const characteristics = await service.getCharacteristics();
                     console.log('Found characteristics:', characteristics.length);
                     characteristics.forEach(char => {
-                        console.log('  - UUID:', char.uuid);
+                        console.log('  - Full UUID:', char.uuid);
+                        console.log('  - Properties:', char.properties);
                     });
 
                     console.log('Getting Read Characteristic...');
@@ -460,24 +461,28 @@
                         writeChar = await service.getCharacteristic(WRITE_CHARACTERISTIC_UUID);
                         setWriteCharacteristic(writeChar);
                         console.log('✅ Write characteristic found - Bidirectional communication available');
-                        // Show success message
                         setTimeout(() => alert('✅ TTGO supporta comunicazione bidirezionale!'), 1000);
                     } catch (writeError) {
-                        console.warn('⚠️ Write characteristic not found:', writeError.message);
+                        console.warn('⚠️ Direct lookup failed:', writeError.message);
                         console.warn('Trying to find it in discovered characteristics...');
                         
-                        // Try to find it manually in the list
-                        const foundWrite = characteristics.find(c => c.uuid === WRITE_CHARACTERISTIC_UUID || c.uuid.includes('2a6f'));
+                        // Try to find it by checking if UUID contains '2a6f'
+                        const foundWrite = characteristics.find(c => {
+                            const uuid = c.uuid.toLowerCase();
+                            console.log('Checking characteristic UUID:', uuid);
+                            return uuid.includes('2a6f');
+                        });
+                        
                         if (foundWrite) {
-                            console.log('Found write characteristic manually!');
+                            console.log('✅ Found write characteristic manually!', foundWrite.uuid);
                             setWriteCharacteristic(foundWrite);
                             writeChar = foundWrite;
-                            setTimeout(() => alert('✅ TTGO supporta comunicazione bidirezionale! (trovata manualmente)'), 1000);
+                            setTimeout(() => alert('✅ TTGO supporta comunicazione bidirezionale!\n(UUID: ' + foundWrite.uuid + ')'), 1000);
                         } else {
-                            console.warn('TTGO firmware may not support bidirectional communication');
+                            console.warn('❌ Write characteristic not found in any format');
+                            console.warn('Available UUIDs:', characteristics.map(c => c.uuid).join(', '));
                             setWriteCharacteristic(null);
-                            // Show warning message
-                            setTimeout(() => alert('⚠️ TTGO usa firmware vecchio - solo ricezione dati disponibile\n\nCaratteristiche trovate: ' + characteristics.length), 1000);
+                            setTimeout(() => alert('⚠️ Caratteristica di scrittura non trovata\n\nCaratteristiche trovate: ' + characteristics.length + '\nUUIDs: ' + characteristics.map(c => c.uuid.substring(0, 8)).join(', ')), 1000);
                         }
                     }
 
@@ -562,7 +567,7 @@
                 <div className="container">
                     <div className="header">
                         <h1>TTGO Reader</h1>
-                        <span className="version">v0.6</span>
+                        <span className="version">v0.65</span>
                         <p>
                            <span className={`status-dot dot-${connectionStatus}`}></span>
                            {getStatusText()}
