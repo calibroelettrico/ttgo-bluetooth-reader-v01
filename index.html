@@ -8,7 +8,6 @@
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link rel="manifest" href="manifest.json">
     <style>
         :root {
             --bg-color: #0f172a;
@@ -49,10 +48,6 @@
             text-align: center;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 0.75rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 1rem;
         }
         .header h1 {
             margin: 0;
@@ -63,6 +58,7 @@
             font-size: 0.8rem;
             color: #94a3b8;
             font-weight: normal;
+            margin-left: 0.5rem;
         }
         .header p {
             margin: 0.25rem 0 0;
@@ -94,6 +90,10 @@
             outline: none;
             border-color: var(--primary-color);
             box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
+        }
+        .input-group input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         button {
             background-color: var(--primary-color);
@@ -163,9 +163,6 @@
         th:nth-child(2), td:nth-child(2) { width: 28%; }
         th:nth-child(3), td:nth-child(3) { width: 28%; }
         th:nth-child(4), td:nth-child(4) { width: 29%; }
-        .table-body tbody tr:last-child td {
-            border-bottom: none;
-        }
         tbody tr:hover {
             background-color: rgba(56, 189, 248, 0.1) !important;
         }
@@ -174,7 +171,6 @@
         }
         .editable-cell {
             cursor: pointer;
-            position: relative;
         }
         .editable-cell:hover {
             background-color: rgba(34, 197, 94, 0.1) !important;
@@ -187,33 +183,6 @@
             padding: 2px 4px;
             border-radius: 2px;
             font-size: inherit;
-        }
-        .cell-input:focus {
-            outline: none;
-        }
-        .row-actions {
-            display: flex;
-            gap: 0.25rem;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        tbody tr:hover .row-actions {
-            opacity: 1;
-        }
-        .action-btn {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 2px 6px;
-            border-radius: 2px;
-            font-size: 0.7rem;
-            cursor: pointer;
-        }
-        .action-btn.delete {
-            background: var(--error-color);
-        }
-        .action-btn:hover {
-            opacity: 0.8;
         }
         .status-dot {
             height: 8px;
@@ -253,6 +222,7 @@
             border-radius: 0.5rem;
             max-width: 400px;
             width: 90%;
+            border: 1px solid var(--border-color);
         }
         .modal-buttons {
             display: flex;
@@ -277,4 +247,458 @@
         const MSG_TYPE_CONFIRM_RESUME = 0x04;
         const MSG_TYPE_MEASUREMENT = 0x11;
         const MSG_TYPE_RESUME_REQUEST = 0x12;
-        const
+        const MSG_TYPE_HISTORIC_DATA = 0x13;
+        const MSG_TYPE_END_HISTORIC = 0x14;
+        
+        const App = () => {
+            const [connectionStatus, setConnectionStatus] = React.useState('disconnected');
+            const [device, setDevice] = React.useState(null);
+            const [writeCharacteristic, setWriteCharacteristic] = React.useState(null);
+            const [measurements, setMeasurements] = React.useState([]);
+            const [fileName, setFileName] = React.useState('');
+            const [lengthCm, setLengthCm] = React.useState('');
+            const [editingCell, setEditingCell] = React.useState(null);
+            const [tempValue, setTempValue] = React.useState('');
+            const [selectedRow, setSelectedRow] = React.useState(null);
+            const [showResumeModal, setShowResumeModal] = React.useState(false);
+            const [resumeFileName, setResumeFileName] = React.useState('');
+            const [isLoadingHistoric, setIsLoadingHistoric] = React.useState(false);
+
+            const lengthCmRef = React.useRef(lengthCm);
+            const tableBodyRef = React.useRef(null);
+            const writeCharRef = React.useRef(null);
+
+            React.useEffect(() => {
+                lengthCmRef.current = lengthCm;
+            }, [lengthCm]);
+
+            React.useEffect(() => {
+                writeCharRef.current = writeCharacteristic;
+            }, [writeCharacteristic]);
+
+            React.useEffect(() => {
+                if (tableBodyRef.current && measurements.length > 0) {
+                    tableBodyRef.current.scrollTop = tableBodyRef.current.scrollHeight;
+                }
+            }, [measurements]);
+
+            const handleDisconnect = async () => {
+                if (device && device.gatt.connected) {
+                    await device.gatt.disconnect();
+                }
+                setConnectionStatus('disconnected');
+                setDevice(null);
+                setWriteCharacteristic(null);
+                console.log('Device disconnected.');
+            };
+
+            const sendMessage = (data) => {
+                if (writeCharRef.current) {
+                    writeCharRef.current.writeValue(data).catch(err => {
+                        console.error('Error sending message:', err);
+                    });
+                }
+            };
+
+            const handleNotifications = (event) => {
+                const value = event.target.value;
+                if (value.byteLength === 0) return;
+
+                const msgType = value.getUint8(0);
+                console.log('Received message type:', msgType);
+
+                if (msgType === MSG_TYPE_MEASUREMENT && value.byteLength >= 7) {
+                    const diameterMm = value.getUint16(1, true);
+                    const count = value.getUint32(3, true);
+                    
+                    const diameterCm = (diameterMm / 10).toFixed(1).replace('.', ',');
+                    const currentLengthCm = lengthCmRef.current || 0;
+                    const radiusCm = parseFloat((diameterMm / 10).toFixed(1)) / 2;
+                    const volumeCm3 = Math.PI * Math.pow(radiusCm, 2) * parseFloat(currentLengthCm);
+                    const volume = (volumeCm3 / 1000000).toFixed(4).replace('.', ',');
+
+                    const newMeasurementData = {
+                        num: count,
+                        diameter: diameterCm,
+                        length: parseFloat(currentLengthCm).toFixed(1).replace('.', ','),
+                        volume: volume,
+                    };
+
+                    const existingIndex = measurements.findIndex(m => m.num === count);
+                    
+                    if (existingIndex !== -1) {
+                        console.log('Updating measurement:', count);
+                        setMeasurements(prev => prev.map((m, index) => 
+                            index === existingIndex ? newMeasurementData : m
+                        ));
+                    } else {
+                        console.log('Adding new measurement:', count);
+                        setMeasurements(prev => [...prev, newMeasurementData]);
+                    }
+                    
+                    setSelectedRow(null);
+
+                } else if (msgType === MSG_TYPE_RESUME_REQUEST) {
+                    const filename = String.fromCharCode.apply(null, new Uint8Array(value.buffer, 1));
+                    console.log('Resume request for:', filename);
+                    setResumeFileName(filename);
+                    setShowResumeModal(true);
+
+                } else if (msgType === MSG_TYPE_HISTORIC_DATA && value.byteLength >= 7) {
+                    const diameterMm = value.getUint16(1, true);
+                    const count = value.getUint32(3, true);
+                    
+                    const diameterCm = (diameterMm / 10).toFixed(1).replace('.', ',');
+                    const currentLengthCm = lengthCmRef.current || 0;
+                    const radiusCm = parseFloat((diameterMm / 10).toFixed(1)) / 2;
+                    const volumeCm3 = Math.PI * Math.pow(radiusCm, 2) * parseFloat(currentLengthCm);
+                    const volume = (volumeCm3 / 1000000).toFixed(4).replace('.', ',');
+
+                    setMeasurements(prev => [...prev, {
+                        num: count,
+                        diameter: diameterCm,
+                        length: parseFloat(currentLengthCm).toFixed(1).replace('.', ','),
+                        volume: volume,
+                    }]);
+
+                } else if (msgType === MSG_TYPE_END_HISTORIC) {
+                    console.log('Historic data loading complete');
+                    setIsLoadingHistoric(false);
+                }
+            };
+
+            const handleRowSelect = (rowIndex) => {
+                const newSelectedRow = selectedRow === rowIndex ? null : rowIndex;
+                setSelectedRow(newSelectedRow);
+                
+                if (newSelectedRow !== null && writeCharacteristic) {
+                    const measurementNum = measurements[newSelectedRow]?.num || 0;
+                    console.log('Sending selection to TTGO:', measurementNum);
+                    
+                    const data = new Uint8Array(5);
+                    data[0] = MSG_TYPE_SELECT_MEAS;
+                    data[1] = measurementNum & 0xFF;
+                    data[2] = (measurementNum >> 8) & 0xFF;
+                    data[3] = (measurementNum >> 16) & 0xFF;
+                    data[4] = (measurementNum >> 24) & 0xFF;
+                    
+                    sendMessage(data.buffer);
+                }
+            };
+
+            const handleCellEdit = (rowIndex, field, currentValue) => {
+                setEditingCell({ rowIndex, field });
+                setTempValue(currentValue);
+            };
+
+            const handleCellSave = () => {
+                if (editingCell) {
+                    const { rowIndex, field } = editingCell;
+                    setMeasurements(prev => prev.map((measurement, index) => {
+                        if (index === rowIndex) {
+                            const updated = { ...measurement, [field]: tempValue };
+                            
+                            if (field === 'diameter' || field === 'length') {
+                                const diameter = parseFloat((field === 'diameter' ? tempValue : measurement.diameter).replace(',', '.'));
+                                const length = parseFloat((field === 'length' ? tempValue : measurement.length).replace(',', '.'));
+                                const radiusCm = diameter / 2;
+                                const volumeCm3 = Math.PI * Math.pow(radiusCm, 2) * length;
+                                const volume = (volumeCm3 / 1000000).toFixed(4).replace('.', ',');
+                                updated.volume = volume;
+                            }
+                            
+                            return updated;
+                        }
+                        return measurement;
+                    }));
+                }
+                setEditingCell(null);
+                setTempValue('');
+            };
+
+            const handleCellCancel = () => {
+                setEditingCell(null);
+                setTempValue('');
+            };
+
+            const handleConnect = async () => {
+                try {
+                    setConnectionStatus('connecting');
+                    console.log('Requesting Bluetooth device...');
+                    const bleDevice = await navigator.bluetooth.requestDevice({
+                        filters: [{ services: [SERVICE_UUID] }],
+                        optionalServices: [SERVICE_UUID]
+                    });
+
+                    bleDevice.addEventListener('gattserverdisconnected', handleDisconnect);
+                    setDevice(bleDevice);
+
+                    console.log('Connecting to GATT Server...');
+                    const server = await bleDevice.gatt.connect();
+
+                    console.log('Getting Service...');
+                    const service = await server.getPrimaryService(SERVICE_UUID);
+
+                    console.log('Getting Read Characteristic...');
+                    const readCharacteristic = await service.getCharacteristic(READ_CHARACTERISTIC_UUID);
+
+                    console.log('Getting Write Characteristic...');
+                    const writeChar = await service.getCharacteristic(WRITE_CHARACTERISTIC_UUID);
+                    setWriteCharacteristic(writeChar);
+
+                    await readCharacteristic.startNotifications();
+                    readCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+
+                    setConnectionStatus('connected');
+                    console.log('Connected successfully');
+
+                    if (fileName.trim()) {
+                        setTimeout(() => {
+                            const filenameBytes = new TextEncoder().encode(fileName.trim());
+                            const data = new Uint8Array(filenameBytes.length + 1);
+                            data[0] = MSG_TYPE_FILENAME;
+                            data.set(filenameBytes, 1);
+                            sendMessage(data.buffer);
+                            console.log('Filename sent:', fileName.trim());
+                        }, 1000);
+                    }
+
+                } catch (error) {
+                    console.error('Connection failed:', error);
+                    setConnectionStatus('disconnected');
+                    alert('Errore connessione: ' + error.message);
+                }
+            };
+
+            const handleResumeResponse = (resume) => {
+                setShowResumeModal(false);
+                
+                const data = new Uint8Array(2);
+                data[0] = MSG_TYPE_CONFIRM_RESUME;
+                data[1] = resume ? 1 : 0;
+                sendMessage(data.buffer);
+                
+                if (resume) {
+                    setIsLoadingHistoric(true);
+                    setFileName(resumeFileName);
+                    setMeasurements([]);
+                    console.log('Resume confirmed');
+                } else {
+                    console.log('Resume declined');
+                }
+            };
+            
+            const handleSaveFile = () => {
+                if (measurements.length === 0) return;
+
+                const ws = XLSX.utils.aoa_to_sheet([]);
+                
+                XLSX.utils.sheet_add_aoa(ws, [['Num', 'Diametro (cm)', 'Lunghezza (cm)', 'Volume (m³)']], {origin: 'A1'});
+                XLSX.utils.sheet_add_aoa(ws, [['Num', 'Diametro (cm)', 'Lunghezza (cm)', 'Volume (m³)']], {origin: 'E1'});
+                
+                const firstBlock = measurements.slice(0, 60);
+                const secondBlock = measurements.slice(60, 120);
+                
+                if (firstBlock.length > 0) {
+                    const firstBlockData = firstBlock.map(m => [m.num, m.diameter, m.length, m.volume]);
+                    XLSX.utils.sheet_add_aoa(ws, firstBlockData, {origin: 'A2'});
+                }
+                
+                if (secondBlock.length > 0) {
+                    const secondBlockData = secondBlock.map(m => [m.num, m.diameter, m.length, m.volume]);
+                    XLSX.utils.sheet_add_aoa(ws, secondBlockData, {origin: 'E2'});
+                }
+                
+                const totalVolume = measurements.reduce((sum, m) => {
+                    return sum + parseFloat(m.volume.replace(',', '.'));
+                }, 0);
+                
+                XLSX.utils.sheet_add_aoa(ws, [['Totale m3']], {origin: 'I63'});
+                XLSX.utils.sheet_add_aoa(ws, [[totalVolume.toFixed(4).replace('.', ',')]], {origin: 'I64'});
+                XLSX.utils.sheet_add_aoa(ws, [['10% corteccia']], {origin: 'H65'});
+                
+                const volumeAfterBark = totalVolume * 0.9;
+                XLSX.utils.sheet_add_aoa(ws, [[volumeAfterBark.toFixed(4).replace('.', ',')]], {origin: 'I65'});
+
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, ws, "Misure");
+                
+                const finalFileName = fileName.trim() ? `${fileName.trim()}.ods` : `misure_TTGO_${new Date().toISOString().split('T')[0]}.ods`;
+
+                XLSX.writeFile(workbook, finalFileName);
+            };
+
+            const getStatusText = () => {
+                switch(connectionStatus) {
+                    case 'connected': return 'Connesso';
+                    case 'connecting': return 'Connessione...';
+                    default: return 'Disconnesso';
+                }
+            };
+
+            return (
+                <div className="container">
+                    {showResumeModal && (
+                        <div className="modal">
+                            <div className="modal-content">
+                                <h2 style={{marginTop: 0, color: 'var(--primary-color)'}}>Riprendere sessione?</h2>
+                                <p>Trovata sessione precedente:</p>
+                                <p style={{fontWeight: 'bold', fontSize: '1.1rem'}}>{resumeFileName}</p>
+                                <p>Vuoi caricare i dati salvati?</p>
+                                <div className="modal-buttons">
+                                    <button onClick={() => handleResumeResponse(true)}>
+                                        Sì, Riprendi
+                                    </button>
+                                    <button onClick={() => handleResumeResponse(false)} style={{background: 'var(--error-color)'}}>
+                                        No, Nuova Sessione
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="header">
+                        <h1>TTGO Reader <span className="version">v0.7</span></h1>
+                        <p>
+                           <span className={`status-dot dot-${connectionStatus}`}></span>
+                           {getStatusText()}
+                           {isLoadingHistoric && ' - Caricamento...'}
+                        </p>
+                    </div>
+
+                    <div className="inputs">
+                        <div className="input-group">
+                            <label htmlFor="fileName">Nome file:</label>
+                            <input 
+                                id="fileName" 
+                                type="text" 
+                                value={fileName}
+                                onChange={e => setFileName(e.target.value)}
+                                placeholder="es. Misure_Lotto_1"
+                                disabled={connectionStatus === 'connected'}
+                            />
+                        </div>
+                         <div className="input-group">
+                            <label htmlFor="lengthCm">Lunghezza cm:</label>
+                            <input 
+                                id="lengthCm" 
+                                type="number"
+                                value={lengthCm}
+                                onChange={e => setLengthCm(e.target.value)}
+                                placeholder="es. 120.5"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="table-container">
+                        <div className="table-header">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Num</th>
+                                        <th>Diametro (cm)</th>
+                                        <th>Lunghezza (cm)</th>
+                                        <th>Volume (m³)</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </div>
+                        <div className="table-body" ref={tableBodyRef}>
+                            {measurements.length === 0 ? (
+                                <div className="empty-state">
+                                    In attesa di misurazioni...
+                                </div>
+                            ) : (
+                                <table>
+                                    <tbody>
+                                        {measurements.map((m, index) => (
+                                            <tr 
+                                                key={`${m.num}-${index}`}
+                                                className={selectedRow === index ? 'selected' : ''}
+                                                onClick={() => handleRowSelect(index)}
+                                            >
+                                                <td>{m.num}</td>
+                                                <td 
+                                                    className="editable-cell"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleCellEdit(index, 'diameter', m.diameter);
+                                                    }}
+                                                >
+                                                    {editingCell?.rowIndex === index && editingCell?.field === 'diameter' ? (
+                                                        <input
+                                                            className="cell-input"
+                                                            type="text"
+                                                            value={tempValue}
+                                                            onChange={(e) => setTempValue(e.target.value)}
+                                                            onBlur={handleCellSave}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleCellSave();
+                                                                if (e.key === 'Escape') handleCellCancel();
+                                                            }}
+                                                            autoFocus
+                                                        />
+                                                    ) : (
+                                                        m.diameter
+                                                    )}
+                                                </td>
+                                                <td 
+                                                    className="editable-cell"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleCellEdit(index, 'length', m.length);
+                                                    }}
+                                                >
+                                                    {editingCell?.rowIndex === index && editingCell?.field === 'length' ? (
+                                                        <input
+                                                            className="cell-input"
+                                                            type="text"
+                                                            value={tempValue}
+                                                            onChange={(e) => setTempValue(e.target.value)}
+                                                            onBlur={handleCellSave}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleCellSave();
+                                                                if (e.key === 'Escape') handleCellCancel();
+                                                            }}
+                                                            autoFocus
+                                                        />
+                                                    ) : (
+                                                        m.length
+                                                    )}
+                                                </td>
+                                                <td>{m.volume}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="controls">
+                        {connectionStatus !== 'connected' ? (
+                            <button onClick={handleConnect} disabled={connectionStatus === 'connecting' || !fileName.trim()}>
+                                Connetti a Dispositivo
+                            </button>
+                        ) : (
+                            <button onClick={handleDisconnect} className="btn-disconnect">
+                                Disconnetti
+                            </button>
+                        )}
+                        {selectedRow !== null && connectionStatus === 'connected' && (
+                            <div style={{padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '0.375rem', fontSize: '0.9rem'}}>
+                                📍 Riga {selectedRow + 1} selezionata (Num: {measurements[selectedRow]?.num})
+                            </div>
+                        )}
+                        <button onClick={handleSaveFile} disabled={measurements.length === 0}>
+                            Salva File (.ods)
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
