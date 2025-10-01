@@ -471,20 +471,25 @@
             };
 
             const handleResumeResponse = (resume) => {
+                console.log('User response to resume:', resume ? 'YES' : 'NO');
                 setShowResumeModal(false);
                 
                 const data = new Uint8Array(2);
                 data[0] = MSG_TYPE_CONFIRM_RESUME;
                 data[1] = resume ? 1 : 0;
+                
+                console.log('Sending resume response:', data);
                 sendMessage(data.buffer);
                 
                 if (resume) {
                     setIsLoadingHistoric(true);
                     setFileName(resumeFileName);
                     setMeasurements([]);
-                    console.log('Resume confirmed');
+                    console.log('Resume confirmed, waiting for historic data');
                 } else {
-                    console.log('Resume declined');
+                    console.log('Resume declined, ready for new session');
+                    // Clear measurements and wait for new filename
+                    setMeasurements([]);
                 }
             };
             
@@ -681,9 +686,22 @@
                                 Connetti a Dispositivo
                             </button>
                         ) : (
-                            <button onClick={handleDisconnect} className="btn-disconnect">
-                                Disconnetti
-                            </button>
+                            <>
+                                <button onClick={handleDisconnect} className="btn-disconnect">
+                                    Disconnetti
+                                </button>
+                                {!showResumeModal && (
+                                    <button onClick={() => {
+                                        console.log('Manual resume NO sent');
+                                        const data = new Uint8Array(2);
+                                        data[0] = MSG_TYPE_CONFIRM_RESUME;
+                                        data[1] = 0;
+                                        sendMessage(data.buffer);
+                                    }} style={{background: '#f59e0b', fontSize: '0.8rem'}}>
+                                        🔓 Sblocca TTGO (Debug)
+                                    </button>
+                                )}
+                            </>
                         )}
                         {selectedRow !== null && connectionStatus === 'connected' && (
                             <div style={{padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '0.375rem', fontSize: '0.9rem'}}>
