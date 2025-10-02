@@ -1,341 +1,520 @@
 <!DOCTYPE html>
 <html lang="it">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Misuratore Tronchi PWA</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Babel per la transpilazione di JSX direttamente nel browser -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2c5530">
+    <title>Misura Volume Tronchi</title>
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWlzdXJhIFZvbHVtZSBUcm9uY2hpIiwic2hvcnRfbmFtZSI6IlRyb25jaGkiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI2ZmZmZmZiIsInRoZW1lX2NvbG9yIjoiIzJjNTUzMCIsImlkb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSGRwWkhSb1BTSXhPVElpSUdobGFXZG9kRDBpTVRreUlqNDhjbVZqZENCM2FXUjBhRDBpTVRreUlpQm9aV2xuYUhROUlqRTVNaUlnWm1sc2JEMGlJekpqTlRVek1DSXZQanh3WVhSb0lHUTlJazB4TURBZ05UQnNNVEFnT0RCc0xURXdMVEV3ZWkwMExURjJMVEV3ZWlJZ1ptbHNiRDBpSXpabU5qWTJaaUl2UGp4MFpYaDBJSGc5SWpFeU1DSWdlVDBpTVRBd0lpQjBaWGgwTFdGdVkyaHZjajBpYldsa1pHeGxJaUJtYjI1MExYTnBlbVU5SWpJMElpQm1hV3hzUFNJak1tTTFOVE13SWo0OGRITndZVzQrVkR3dmRITndZVzQrUEM5MFpYaDBQand2YzNablBnPT0iLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
     <style>
-      body {
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
-  }
-}
-</script>
-</head>
-  <body class="bg-gray-900 text-gray-100">
-    <div id="root"></div>
-    <script type="text/babel" data-type="module">
-      import React, { useState, useCallback, useRef, useEffect } from 'react';
-      import ReactDOM from 'react-dom/client';
-
-      // --- UUID del servizio e delle caratteristiche Bluetooth ---
-      // Devono corrispondere a quelli nel codice Arduino
-      const BLE_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-      const BLE_TX_CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8"; // PWA -> TTGO
-      const BLE_RX_CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a9"; // TTGO -> PWA
-
-      // --- Componenti React ---
-
-      const Header = () => (
-        <header className="text-center mb-4">
-            <h1 className="text-4xl font-bold text-cyan-400">Misuratore Tronchi PWA</h1>
-            <p className="text-gray-400">Data Logger Bluetooth per TTGO</p>
-        </header>
-      );
-
-      const StatusIndicator = ({ isConnected, statusText }) => {
-        const bgColor = isConnected ? 'bg-green-800' : 'bg-yellow-800';
-        const textColor = isConnected ? 'text-green-200' : 'text-yellow-200';
-        const dotColor = isConnected ? 'bg-green-400' : 'bg-yellow-400';
-
-        return (
-            <div className={`p-3 rounded-lg flex items-center space-x-3 ${bgColor} ${textColor} shadow-md`}>
-                <span className={`h-3 w-3 rounded-full ${dotColor} ${isConnected ? 'animate-pulse' : ''}`}></span>
-                <span className="font-mono text-sm">{statusText}</span>
-            </div>
-        );
-      }
-
-      const DataForm = ({ fileName, setFileName, length, setLength, disabled }) => (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-800 p-4 rounded-lg shadow-lg">
-            <div>
-                <label htmlFor="fileName" className="block text-sm font-medium text-gray-300 mb-1">
-                    Nome File
-                </label>
-                <input
-                    type="text"
-                    id="fileName"
-                    value={fileName}
-                    onChange={(e) => setFileName(e.target.value)}
-                    disabled={disabled}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
-                />
-            </div>
-            <div>
-                <label htmlFor="length" className="block text-sm font-medium text-gray-300 mb-1">
-                    Lunghezza (cm)
-                </label>
-                <input
-                    type="number"
-                    id="length"
-                    value={length}
-                    onChange={(e) => setLength(Number(e.target.value))}
-                    disabled={disabled}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
-                />
-            </div>
-        </div>
-      );
-
-      const MeasurementsTable = ({ measurements }) => {
-        const tableContainerRef = useRef(null);
-
-        useEffect(() => {
-            if (tableContainerRef.current) {
-                tableContainerRef.current.scrollTop = tableContainerRef.current.scrollHeight;
-            }
-        }, [measurements]);
-
-        return (
-            <div className="flex-grow flex flex-col bg-gray-800 p-4 rounded-lg shadow-lg min-h-[300px]">
-                <h2 className="text-xl font-semibold mb-2 text-cyan-400">Misure</h2>
-                <div ref={tableContainerRef} className="flex-grow overflow-y-auto">
-                    <table className="w-full text-left table-fixed">
-                        <thead className="sticky top-0 bg-gray-800">
-                            <tr>
-                                <th className="w-1/6 p-2 text-sm font-medium text-gray-400">Num</th>
-                                <th className="w-1/3 p-2 text-sm font-medium text-gray-400">Diametro (cm)</th>
-                                <th className="w-1/4 p-2 text-sm font-medium text-gray-400">Lunghezza (cm)</th>
-                                <th className="w-1/4 p-2 text-sm font-medium text-gray-400">Volume (m³)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {measurements.map((m, index) => (
-                                <tr key={index} className="border-t border-gray-700 hover:bg-gray-700">
-                                    <td className="p-2">{m.num}</td>
-                                    <td className="p-2">{m.diameter.toFixed(1)}</td>
-                                    <td className="p-2">{m.length}</td>
-                                    <td className="p-2">{m.volume}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                     {measurements.length === 0 && (
-                        <div className="text-center p-8 text-gray-500">
-                            In attesa di misurazioni...
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-      };
-
-      const Actions = ({ isConnected, onConnect, onDisconnect, onSave }) => (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {!isConnected ? (
-                <button
-                    onClick={onConnect}
-                    className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-colors duration-200"
-                >
-                    Connetti
-                </button>
-            ) : (
-                <button
-                    onClick={onDisconnect}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-colors duration-200"
-                >
-                    Disconnetti
-                </button>
-            )}
-            <button
-                onClick={onSave}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-colors duration-200"
-            >
-                Salva come .csv
-            </button>
-        </div>
-      );
-
-      // --- Componente Principale App ---
-
-      const App = () => {
-        const [fileName, setFileName] = useState('tronchi');
-        const [length, setLength] = useState(100);
-        const [measurements, setMeasurements] = useState([]);
-        const [isConnected, setIsConnected] = useState(false);
-        const [status, setStatus] = useState('Pronto. Connettersi al dispositivo.');
-
-        const deviceRef = useRef(null);
-        const txCharacteristicRef = useRef(null);
-
-        const onDisconnected = useCallback(() => {
-            setIsConnected(false);
-            setStatus('Dispositivo disconnesso. Riconnettersi se necessario.');
-            deviceRef.current = null;
-            txCharacteristicRef.current = null;
-        }, []);
-
-        const handleDisconnect = useCallback(() => {
-            if (deviceRef.current && deviceRef.current.gatt?.connected) {
-                deviceRef.current.gatt.disconnect();
-            }
-        }, []);
-
-        const handleNotifications = useCallback((event) => {
-            const value = event.target.value;
-            if (!value) return;
-
-            const decoder = new TextDecoder('utf-8');
-            const message = decoder.decode(value);
-
-            console.log(`Ricevuto: ${message}`);
-            const [command, ...args] = message.split(':');
-
-            if (command === 'DATA') {
-                const [numStr, diameterMmStr] = args;
-                const num = parseInt(numStr, 10);
-                const diameterCm = parseFloat(diameterMmStr) / 10;
-                const lengthCm = length;
-
-                const radiusM = (diameterCm / 2) / 100;
-                const lengthM = lengthCm / 100;
-                const volumeMc = Math.PI * Math.pow(radiusM, 2) * lengthM;
-                
-                const newMeasurement = {
-                    num,
-                    diameter: diameterCm,
-                    length: lengthCm,
-                    volume: parseFloat(volumeMc.toFixed(6))
-                };
-                
-                setMeasurements(prev => [...prev.filter(m => m.num !== num), newMeasurement].sort((a,b) => a.num - b.num));
-                setStatus(`Ricevuta misura #${num}`);
-            } else if (command === 'DEL_LAST') {
-                setMeasurements(prev => prev.slice(0, -1));
-                setStatus('Ultima misura cancellata.');
-            } else if (command === 'LOG') {
-                setStatus(`Dispositivo: ${args.join(':')}`);
-            } else if (command === 'CLEAR') {
-                setMeasurements([]);
-                setStatus('Nuovo file avviato. Tabella pulita.');
-            }
-        }, [length]);
-
-        const connectToDevice = useCallback(async () => {
-            if (!fileName || length <= 0) {
-                setStatus('Inserire un Nome File e una Lunghezza validi.');
-                return;
-            }
-
-            try {
-                setStatus('Richiesta dispositivo Bluetooth...');
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [BLE_SERVICE_UUID] }],
-                });
-
-                deviceRef.current = device;
-                device.addEventListener('gattserverdisconnected', onDisconnected);
-                setStatus('Connessione al server GATT...');
-                const server = await device.gatt.connect();
-                
-                setStatus('Ottenimento servizio primario...');
-                const service = await server.getPrimaryService(BLE_SERVICE_UUID);
-
-                setStatus('Ottenimento caratteristiche...');
-                const txCharacteristic = await service.getCharacteristic(BLE_TX_CHARACTERISTIC_UUID);
-                const rxCharacteristic = await service.getCharacteristic(BLE_RX_CHARACTERISTIC_UUID);
-                
-                txCharacteristicRef.current = txCharacteristic;
-
-                setStatus('Avvio notifiche...');
-                await rxCharacteristic.startNotifications();
-                rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
-                
-                setIsConnected(true);
-                setStatus('Connesso! In attesa di azione dal dispositivo...');
-
-                const encoder = new TextEncoder();
-                const dataToSend = `INIT:${fileName}:${length}`;
-                await txCharacteristicRef.current.writeValue(encoder.encode(dataToSend));
-
-            } catch (error) {
-                setStatus(`Errore: ${error.message}`);
-                console.error('Connessione fallita:', error);
-                setIsConnected(false);
-                if(deviceRef.current) {
-                    deviceRef.current.removeEventListener('gattserverdisconnected', onDisconnected);
-                    deviceRef.current = null;
-                }
-            }
-        }, [fileName, length, handleNotifications, onDisconnected]);
-
-        const handleSave = () => {
-            if (measurements.length === 0) {
-                setStatus('Nessun dato da salvare.');
-                return;
-            }
-            // Converte il separatore decimale in virgola per LibreOffice italiano
-            const header = "Num;Diametro(cm);Lunghezza(cm);Volume(mc)\n";
-            const csvContent = measurements
-                .map(m => `${m.num};${m.diameter.toFixed(1).replace('.',',')};${m.length};${String(m.volume).replace('.',',')}`)
-                .join("\n");
-            
-            const fullCsv = header + csvContent;
-            const blob = new Blob([fullCsv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", `${fileName}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setStatus('File salvato con successo.');
-        };
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        useEffect(() => {
-            return () => {
-                if (deviceRef.current) {
-                    deviceRef.current.removeEventListener('gattserverdisconnected', onDisconnected);
-                    if (deviceRef.current.gatt?.connected) {
-                        deviceRef.current.gatt.disconnect();
-                    }
-                }
-            };
-        }, [onDisconnected]);
-
-        return (
-            <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col p-4 font-sans">
-                <Header />
-                <div className="container mx-auto max-w-4xl flex-grow flex flex-col space-y-4">
-                    <StatusIndicator isConnected={isConnected} statusText={status} />
-                    <DataForm
-                        fileName={fileName}
-                        setFileName={setFileName}
-                        length={length}
-                        setLength={setLength}
-                        disabled={isConnected}
-                    />
-                    <MeasurementsTable measurements={measurements} />
-                    <Actions
-                        isConnected={isConnected}
-                        onConnect={connectToDevice}
-                        onDisconnect={handleDisconnect}
-                        onSave={handleSave}
-                    />
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #2c5530 0%, #4a7c4e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c5530 0%, #3d6d40 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .control-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #2c5530;
+        }
+        
+        input, select {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #2c5530;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .btn-primary {
+            background: #2c5530;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3d6d40;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(44, 85, 48, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .status {
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .data-section {
+            padding: 30px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #2c5530 0%, #3d6d40 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        th {
+            background: #2c5530;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .delete-btn:hover {
+            background: #c82333;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌲 Misurazione Volume Tronchi</h1>
+            <p>Sistema di acquisizione dati da TTGO Display</p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div class="input-group">
+                    <label>Lunghezza (m):</label>
+                    <input type="number" id="length" step="0.1" value="3.0" min="0.1">
+                </div>
+                <div class="input-group">
+                    <label>Specie:</label>
+                    <select id="species">
+                        <option>Abete</option>
+                        <option>Pino</option>
+                        <option>Larice</option>
+                        <option>Faggio</option>
+                        <option>Quercia</option>
+                        <option>Castagno</option>
+                        <option>Altro</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Note:</label>
+                    <input type="text" id="notes" placeholder="Note aggiuntive">
                 </div>
             </div>
-        );
-      };
+            
+            <div class="btn-group">
+                <button class="btn-primary" onclick="connectBluetooth()">📡 Connetti TTGO</button>
+                <button class="btn-secondary" onclick="addManualEntry()">➕ Inserimento Manuale</button>
+                <button class="btn-success" onclick="exportToODS()">💾 Esporta ODS</button>
+                <button class="btn-success" onclick="exportToCSV()">📄 Esporta CSV</button>
+                <button class="btn-secondary" onclick="clearData()">🗑️ Cancella Dati</button>
+            </div>
+            
+            <div id="status" class="status disconnected">
+                ❌ Non connesso
+            </div>
+        </div>
+        
+        <div class="data-section">
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Tronchi Misurati</h3>
+                    <div class="value" id="totalLogs">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Volume Totale (m³)</h3>
+                    <div class="value" id="totalVolume">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Diametro Medio (cm)</h3>
+                    <div class="value" id="avgDiameter">0.0</div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Data/Ora</th>
+                            <th>Diametro (cm)</th>
+                            <th>Lunghezza (m)</th>
+                            <th>Volume (m³)</th>
+                            <th>Specie</th>
+                            <th>Note</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-      // --- Avvio dell'applicazione ---
-      const rootElement = document.getElementById('root');
-      const root = ReactDOM.createRoot(rootElement);
-      root.render(
-        <React.StrictMode>
-          <App />
-        </React.StrictMode>
-      );
+    <script>
+        let measurements = [];
+        let bleDevice = null;
+        let bleCharacteristic = null;
+
+        // Service Worker per PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:application/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZnVuY3Rpb24oZSkge30pOw==');
+        }
+
+        // Carica dati salvati
+        function loadData() {
+            const saved = localStorage.getItem('timberMeasurements');
+            if (saved) {
+                measurements = JSON.parse(saved);
+                updateDisplay();
+            }
+        }
+
+        // Salva dati
+        function saveData() {
+            localStorage.setItem('timberMeasurements', JSON.stringify(measurements));
+        }
+
+        // Connessione Bluetooth
+        async function connectBluetooth() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'TTGO' }],
+                    optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb']
+                });
+                
+                bleDevice = device;
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+                bleCharacteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+                
+                await bleCharacteristic.startNotifications();
+                bleCharacteristic.addEventListener('characteristicvaluechanged', handleBleData);
+                
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').textContent = '✅ Connesso a ' + device.name;
+            } catch (error) {
+                alert('Errore connessione: ' + error.message);
+            }
+        }
+
+        // Gestione dati Bluetooth
+        function handleBleData(event) {
+            const value = new TextDecoder().decode(event.target.value);
+            const diameter = parseFloat(value);
+            
+            if (!isNaN(diameter) && diameter > 0) {
+                addMeasurement(diameter);
+            }
+        }
+
+        // Aggiungi misurazione
+        function addMeasurement(diameter) {
+            const length = parseFloat(document.getElementById('length').value);
+            const species = document.getElementById('species').value;
+            const notes = document.getElementById('notes').value;
+            
+            const radius = diameter / 200; // cm a m e diviso 2
+            const volume = Math.PI * radius * radius * length;
+            
+            const measurement = {
+                id: Date.now(),
+                timestamp: new Date().toLocaleString('it-IT'),
+                diameter: diameter.toFixed(1),
+                length: length.toFixed(2),
+                volume: volume.toFixed(4),
+                species: species,
+                notes: notes
+            };
+            
+            measurements.unshift(measurement);
+            saveData();
+            updateDisplay();
+        }
+
+        // Inserimento manuale
+        function addManualEntry() {
+            const diameter = prompt('Inserisci il diametro (cm):');
+            if (diameter && !isNaN(diameter) && diameter > 0) {
+                addMeasurement(parseFloat(diameter));
+            }
+        }
+
+        // Aggiorna visualizzazione
+        function updateDisplay() {
+            const tbody = document.getElementById('dataBody');
+            tbody.innerHTML = '';
+            
+            measurements.forEach((m, index) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${measurements.length - index}</td>
+                    <td>${m.timestamp}</td>
+                    <td>${m.diameter}</td>
+                    <td>${m.length}</td>
+                    <td>${m.volume}</td>
+                    <td>${m.species}</td>
+                    <td>${m.notes}</td>
+                    <td><button class="delete-btn" onclick="deleteMeasurement(${m.id})">Elimina</button></td>
+                `;
+            });
+            
+            // Aggiorna statistiche
+            const totalVolume = measurements.reduce((sum, m) => sum + parseFloat(m.volume), 0);
+            const avgDiameter = measurements.length > 0 
+                ? measurements.reduce((sum, m) => sum + parseFloat(m.diameter), 0) / measurements.length 
+                : 0;
+            
+            document.getElementById('totalLogs').textContent = measurements.length;
+            document.getElementById('totalVolume').textContent = totalVolume.toFixed(2);
+            document.getElementById('avgDiameter').textContent = avgDiameter.toFixed(1);
+        }
+
+        // Elimina misurazione
+        function deleteMeasurement(id) {
+            if (confirm('Eliminare questa misurazione?')) {
+                measurements = measurements.filter(m => m.id !== id);
+                saveData();
+                updateDisplay();
+            }
+        }
+
+        // Esporta CSV
+        function exportToCSV() {
+            let csv = 'Numero,Data/Ora,Diametro (cm),Lunghezza (m),Volume (m³),Specie,Note\n';
+            measurements.forEach((m, i) => {
+                csv += `${measurements.length - i},"${m.timestamp}",${m.diameter},${m.length},${m.volume},"${m.species}","${m.notes}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tronchi_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        // Esporta ODS (formato LibreOffice)
+        function exportToODS() {
+            let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" 
+                 xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+                 xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+                 office:version="1.2">
+<office:body>
+<office:spreadsheet>
+<table:table table:name="Misurazioni">
+<table:table-row>
+  <table:table-cell office:value-type="string"><text:p>Numero</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Data/Ora</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Diametro (cm)</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Lunghezza (m)</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Volume (m³)</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Specie</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Note</text:p></table:table-cell>
+</table:table-row>`;
+
+            measurements.forEach((m, i) => {
+                xml += `
+<table:table-row>
+  <table:table-cell office:value-type="float" office:value="${measurements.length - i}"><text:p>${measurements.length - i}</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>${m.timestamp}</text:p></table:table-cell>
+  <table:table-cell office:value-type="float" office:value="${m.diameter}"><text:p>${m.diameter}</text:p></table:table-cell>
+  <table:table-cell office:value-type="float" office:value="${m.length}"><text:p>${m.length}</text:p></table:table-cell>
+  <table:table-cell office:value-type="float" office:value="${m.volume}"><text:p>${m.volume}</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>${m.species}</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>${m.notes}</text:p></table:table-cell>
+</table:table-row>`;
+            });
+
+            xml += `
+</table:table>
+</office:spreadsheet>
+</office:body>
+</office:document>`;
+
+            const blob = new Blob([xml], { type: 'application/vnd.oasis.opendocument.spreadsheet' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tronchi_${new Date().toISOString().split('T')[0]}.ods`;
+            a.click();
+        }
+
+        // Cancella dati
+        function clearData() {
+            if (confirm('Eliminare tutte le misurazioni?')) {
+                measurements = [];
+                saveData();
+                updateDisplay();
+            }
+        }
+
+        // Inizializza
+        loadData();
     </script>
-  </body>
+</body>
 </html>
