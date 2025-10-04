@@ -507,6 +507,21 @@
         // Elimina misurazione
         function deleteMeasurement(id) {
             if (confirm('Eliminare questa misurazione?')) {
+                const indexToDelete = measurements.findIndex(m => m.id === id);
+                if (indexToDelete === -1) return;
+                
+                const measurementNumber = measurements.length - indexToDelete;
+                
+                // Invia comando di eliminazione alla board
+                if (bleCharacteristic && deviceConnected) {
+                    try {
+                        const encoder = new TextEncoder();
+                        bleCharacteristic.writeValue(encoder.encode('DELETE:' + measurementNumber));
+                    } catch (error) {
+                        console.error('Errore invio comando delete:', error);
+                    }
+                }
+                
                 measurements = measurements.filter(m => m.id !== id);
                 saveData();
                 updateDisplay();
