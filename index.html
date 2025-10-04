@@ -319,6 +319,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
         let measurements = [];
         let bleDevice = null;
@@ -527,51 +528,151 @@
             a.click();
         }
 
-        // Esporta ODS (formato LibreOffice)
-        function exportToODS() {
-            let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" 
-                 xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
-                 xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
-                 office:version="1.2">
-<office:body>
-<office:spreadsheet>
-<table:table table:name="Misurazioni">
-<table:table-row>
-  <table:table-cell office:value-type="string"><text:p>Numero</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>Data/Ora</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>Diametro (cm)</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>Lunghezza (m)</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>Volume (m³)</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>Specie</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>File</text:p></table:table-cell>
-</table:table-row>`;
+        // Esporta ODS (formato LibreOffice) completo
+        async function exportToODS() {
+            const zip = new JSZip();
+            
+            // 1. mimetype (deve essere il primo file, non compresso)
+            zip.file("mimetype", "application/vnd.oasis.opendocument.spreadsheet", {compression: "STORE"});
+            
+            // 2. META-INF/manifest.xml
+            const manifest = `<?xml version="1.0" encoding="UTF-8"?>
+<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2">
+  <manifest:file-entry manifest:full-path="/" manifest:version="1.2" manifest:media-type="application/vnd.oasis.opendocument.spreadsheet"/>
+  <manifest:file-entry manifest:full-path="meta.xml" manifest:media-type="text/xml"/>
+  <manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>
+  <manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>
+</manifest:manifest>`;
+            zip.file("META-INF/manifest.xml", manifest);
+            
+            // 3. meta.xml
+            const meta = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-meta xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" 
+                      xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" 
+                      office:version="1.2">
+  <office:meta>
+    <meta:generator>PWA Misura Tronchi</meta:generator>
+    <meta:creation-date>${new Date().toISOString()}</meta:creation-date>
+  </office:meta>
+</office:document-meta>`;
+            zip.file("meta.xml", meta);
+            
+            // 4. styles.xml
+            const styles = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-styles xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" 
+                        xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" 
+                        xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" 
+                        office:version="1.2">
+  <office:styles>
+    <style:style style:name="Default" style:family="table-cell"/>
+  </office:styles>
+</office:document-styles>`;
+            zip.file("styles.xml", styles);
+            
+            // 5. content.xml (il contenuto principale)
+            let content = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" 
+                         xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" 
+                         xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" 
+                         xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" 
+                         xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" 
+                         office:version="1.2">
+  <office:automatic-styles>
+    <style:style style:name="co1" style:family="table-column">
+      <style:table-column-properties fo:break-before="auto" style:column-width="2.5cm"/>
+    </style:style>
+    <style:style style:name="ro1" style:family="table-row">
+      <style:table-row-properties fo:break-before="auto" style:row-height="0.5cm"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body>
+    <office:spreadsheet>
+      <table:table table:name="Misurazioni" table:style-name="ta1">
+        <table:table-column table:style-name="co1" table:number-columns-repeated="7"/>
+        <table:table-row table:style-name="ro1">
+          <table:table-cell office:value-type="string">
+            <text:p>Numero</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="string">
+            <text:p>Data/Ora</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="string">
+            <text:p>Diametro (cm)</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="string">
+            <text:p>Lunghezza (m)</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="string">
+            <text:p>Volume (m³)</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="string">
+            <text:p>Specie</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="string">
+            <text:p>File</text:p>
+          </table:table-cell>
+        </table:table-row>`;
 
             measurements.forEach((m, i) => {
-                xml += `
-<table:table-row>
-  <table:table-cell office:value-type="float" office:value="${measurements.length - i}"><text:p>${measurements.length - i}</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>${m.timestamp}</text:p></table:table-cell>
-  <table:table-cell office:value-type="float" office:value="${m.diameter}"><text:p>${m.diameter}</text:p></table:table-cell>
-  <table:table-cell office:value-type="float" office:value="${m.length}"><text:p>${m.length}</text:p></table:table-cell>
-  <table:table-cell office:value-type="float" office:value="${m.volume}"><text:p>${m.volume}</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>${m.species}</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>${m.filename || '-'}</text:p></table:table-cell>
-</table:table-row>`;
+                content += `
+        <table:table-row table:style-name="ro1">
+          <table:table-cell office:value-type="float" office:value="${measurements.length - i}">
+            <text:p>${measurements.length - i}</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="string">
+            <text:p>${escapeXml(m.timestamp)}</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="float" office:value="${m.diameter}">
+            <text:p>${m.diameter}</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="float" office:value="${m.length}">
+            <text:p>${m.length}</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="float" office:value="${m.volume}">
+            <text:p>${m.volume}</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="string">
+            <text:p>${escapeXml(m.species)}</text:p>
+          </table:table-cell>
+          <table:table-cell office:value-type="string">
+            <text:p>${escapeXml(m.filename || '-')}</text:p>
+          </table:table-cell>
+        </table:table-row>`;
             });
 
-            xml += `
-</table:table>
-</office:spreadsheet>
-</office:body>
-</office:document>`;
-
-            const blob = new Blob([xml], { type: 'application/vnd.oasis.opendocument.spreadsheet' });
+            content += `
+      </table:table>
+    </office:spreadsheet>
+  </office:body>
+</office:document-content>`;
+            
+            zip.file("content.xml", content);
+            
+            // Genera il file ODS
+            const blob = await zip.generateAsync({
+                type: "blob",
+                mimeType: "application/vnd.oasis.opendocument.spreadsheet",
+                compression: "DEFLATE"
+            });
+            
+            // Download
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `tronchi_${new Date().toISOString().split('T')[0]}.ods`;
             a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Funzione helper per escape XML
+        function escapeXml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
         }
 
         // Cancella dati
