@@ -405,14 +405,15 @@
                 document.getElementById('currentFile').textContent = filename;
                 
                 // Feedback visivo
-                const btn = event.target;
+                const btn = document.querySelector('button[onclick="sendFilename()"]');
                 const originalText = btn.textContent;
+                const originalBg = btn.style.background;
                 btn.textContent = '✓ Inviato!';
                 btn.style.background = '#28a745';
                 
                 setTimeout(() => {
                     btn.textContent = originalText;
-                    btn.style.background = '';
+                    btn.style.background = originalBg;
                 }, 2000);
                 
             } catch (error) {
