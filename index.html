@@ -259,8 +259,12 @@
                     </select>
                 </div>
                 <div class="input-group">
-                    <label>Note:</label>
-                    <input type="text" id="notes" placeholder="Note aggiuntive">
+                    <label>Nome File:</label>
+                    <input type="text" id="filename" placeholder="es: taglio_ottobre" value="misure">
+                </div>
+                <div class="input-group">
+                    <label>&nbsp;</label>
+                    <button class="btn-success" onclick="sendFilename()" style="margin-top: 0;">✓ Conferma Nome File</button>
                 </div>
             </div>
             
@@ -273,7 +277,7 @@
             </div>
             
             <div id="status" class="status disconnected">
-                ❌ Non connesso
+                ❌ Non connesso - File: <span id="currentFile">-</span>
             </div>
         </div>
         
@@ -304,6 +308,7 @@
                             <th>Volume (m³)</th>
                             <th>Specie</th>
                             <th>Note</th>
+                            <th>File</th>
                             <th>Azioni</th>
                         </tr>
                     </thead>
@@ -318,6 +323,7 @@
         let measurements = [];
         let bleDevice = null;
         let bleCharacteristic = null;
+        let currentFilename = 'misure';
 
         // Service Worker per PWA
         if ('serviceWorker' in navigator) {
@@ -355,15 +361,79 @@
                 bleCharacteristic.addEventListener('characteristicvaluechanged', handleBleData);
                 
                 document.getElementById('status').className = 'status connected';
-                document.getElementById('status').textContent = '✅ Connesso a ' + device.name;
+                document.getElementById('status').innerHTML = '✅ Connesso a ' + device.name + ' - File: <span id="currentFile">' + currentFilename + '</span>';
+                
+                // Richiedi nome file corrente dalla board
+                setTimeout(requestCurrentFilename, 1000);
+                
             } catch (error) {
                 alert('Errore connessione: ' + error.message);
+            }
+        }
+
+        // Richiedi nome file corrente dalla board
+        async function requestCurrentFilename() {
+            if (bleCharacteristic) {
+                try {
+                    const encoder = new TextEncoder();
+                    await bleCharacteristic.writeValue(encoder.encode('GET_FILENAME'));
+                } catch (error) {
+                    console.error('Errore richiesta filename:', error);
+                }
+            }
+        }
+
+        // Invia nome file alla board
+        async function sendFilename() {
+            const filename = document.getElementById('filename').value.trim();
+            
+            if (!filename) {
+                alert('Inserisci un nome file valido!');
+                return;
+            }
+            
+            if (!bleCharacteristic) {
+                alert('Connetti prima la board TTGO!');
+                return;
+            }
+            
+            try {
+                const encoder = new TextEncoder();
+                await bleCharacteristic.writeValue(encoder.encode('FILE:' + filename));
+                
+                currentFilename = filename;
+                document.getElementById('currentFile').textContent = filename;
+                
+                // Feedback visivo
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Inviato!';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+                
+            } catch (error) {
+                alert('Errore invio nome file: ' + error.message);
             }
         }
 
         // Gestione dati Bluetooth
         function handleBleData(event) {
             const value = new TextDecoder().decode(event.target.value);
+            
+            // Se riceve il nome file dalla board
+            if (value.startsWith('FILENAME:')) {
+                const receivedFilename = value.substring(9);
+                currentFilename = receivedFilename;
+                document.getElementById('filename').value = receivedFilename;
+                document.getElementById('currentFile').textContent = receivedFilename;
+                return;
+            }
+            
+            // Altrimenti è un valore di diametro
             const diameter = parseFloat(value);
             
             if (!isNaN(diameter) && diameter > 0) {
@@ -375,7 +445,6 @@
         function addMeasurement(diameter) {
             const length = parseFloat(document.getElementById('length').value);
             const species = document.getElementById('species').value;
-            const notes = document.getElementById('notes').value;
             
             const radius = diameter / 200; // cm a m e diviso 2
             const volume = Math.PI * radius * radius * length;
@@ -387,7 +456,7 @@
                 length: length.toFixed(2),
                 volume: volume.toFixed(4),
                 species: species,
-                notes: notes
+                filename: currentFilename
             };
             
             measurements.unshift(measurement);
@@ -417,7 +486,7 @@
                     <td>${m.length}</td>
                     <td>${m.volume}</td>
                     <td>${m.species}</td>
-                    <td>${m.notes}</td>
+                    <td>${m.filename || '-'}</td>
                     <td><button class="delete-btn" onclick="deleteMeasurement(${m.id})">Elimina</button></td>
                 `;
             });
@@ -444,9 +513,9 @@
 
         // Esporta CSV
         function exportToCSV() {
-            let csv = 'Numero,Data/Ora,Diametro (cm),Lunghezza (m),Volume (m³),Specie,Note\n';
+            let csv = 'Numero,Data/Ora,Diametro (cm),Lunghezza (m),Volume (m³),Specie,File\n';
             measurements.forEach((m, i) => {
-                csv += `${measurements.length - i},"${m.timestamp}",${m.diameter},${m.length},${m.volume},"${m.species}","${m.notes}"\n`;
+                csv += `${measurements.length - i},"${m.timestamp}",${m.diameter},${m.length},${m.volume},"${m.species}","${m.filename || '-'}"\n`;
             });
             
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -474,7 +543,7 @@
   <table:table-cell office:value-type="string"><text:p>Lunghezza (m)</text:p></table:table-cell>
   <table:table-cell office:value-type="string"><text:p>Volume (m³)</text:p></table:table-cell>
   <table:table-cell office:value-type="string"><text:p>Specie</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>Note</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>File</text:p></table:table-cell>
 </table:table-row>`;
 
             measurements.forEach((m, i) => {
@@ -486,7 +555,7 @@
   <table:table-cell office:value-type="float" office:value="${m.length}"><text:p>${m.length}</text:p></table:table-cell>
   <table:table-cell office:value-type="float" office:value="${m.volume}"><text:p>${m.volume}</text:p></table:table-cell>
   <table:table-cell office:value-type="string"><text:p>${m.species}</text:p></table:table-cell>
-  <table:table-cell office:value-type="string"><text:p>${m.notes}</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>${m.filename || '-'}</text:p></table:table-cell>
 </table:table-row>`;
             });
 
