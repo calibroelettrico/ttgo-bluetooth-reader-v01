@@ -325,6 +325,7 @@
         let bleDevice = null;
         let bleCharacteristic = null;
         let currentFilename = 'misure';
+        let deviceConnected = false;
 
         // Service Worker per PWA
         if ('serviceWorker' in navigator) {
@@ -354,6 +355,8 @@
                 });
                 
                 bleDevice = device;
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                
                 const server = await device.gatt.connect();
                 const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
                 bleCharacteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
@@ -370,6 +373,13 @@
             } catch (error) {
                 alert('Errore connessione: ' + error.message);
             }
+        }
+
+        // Gestione disconnessione
+        function onDisconnected() {
+            deviceConnected = false;
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').innerHTML = '❌ Disconnesso - File: <span id="currentFile">' + currentFilename + '</span>';
         }
 
         // Richiedi nome file corrente dalla board
@@ -432,6 +442,7 @@
                 currentFilename = receivedFilename;
                 document.getElementById('filename').value = receivedFilename;
                 document.getElementById('currentFile').textContent = receivedFilename;
+                deviceConnected = true;
                 return;
             }
             
@@ -505,7 +516,7 @@
         }
 
         // Elimina misurazione
-        function deleteMeasurement(id) {
+        async function deleteMeasurement(id) {
             if (confirm('Eliminare questa misurazione?')) {
                 const indexToDelete = measurements.findIndex(m => m.id === id);
                 if (indexToDelete === -1) return;
@@ -516,12 +527,14 @@
                 if (bleCharacteristic && deviceConnected) {
                     try {
                         const encoder = new TextEncoder();
-                        bleCharacteristic.writeValue(encoder.encode('DELETE:' + measurementNumber));
+                        await bleCharacteristic.writeValue(encoder.encode('DELETE:' + measurementNumber));
+                        console.log('Comando DELETE inviato:', measurementNumber);
                     } catch (error) {
                         console.error('Errore invio comando delete:', error);
                     }
                 }
                 
+                // Elimina dalla PWA
                 measurements = measurements.filter(m => m.id !== id);
                 saveData();
                 updateDisplay();
