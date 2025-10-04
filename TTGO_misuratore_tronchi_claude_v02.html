@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2c5530">
+    <title>Misura Volume Tronchi</title>
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWlzdXJhIFZvbHVtZSBUcm9uY2hpIiwic2hvcnRfbmFtZSI6IlRyb25jaGkiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI2ZmZmZmZiIsInRoZW1lX2NvbG9yIjoiIzJjNTUzMCIsImlkb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSGRwWkhSb1BTSXhPVElpSUdobGFXZG9kRDBpTVRreUlqNDhjbVZqZENCM2FXUjBhRDBpTVRreUlpQm9aV2xuYUhROUlqRTVNaUlnWm1sc2JEMGlJekpqTlRVek1DSXZQanh3WVhSb0lHUTlJazB4TURBZ05UQnNNVEFnT0RCc0xURXdMVEV3ZWkwMExURjJMVEV3ZWlJZ1ptbHNiRDBpSXpabU5qWTJaaUl2UGp4MFpYaDBJSGc5SWpFeU1DSWdlVDBpTVRBd0lpQjBaWGgwTFdGdVkyaHZjajBpYldsa1pHeGxJaUJtYjI1MExYTnBlbVU5SWpJMElpQm1hV3hzUFNJak1tTTFOVE13SWo0OGRITndZVzQrVkR3dmRITndZVzQrUEM5MFpYaDBQand2YzNablBnPT0iLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #2c5530 0%, #4a7c4e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c5530 0%, #3d6d40 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .control-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #2c5530;
+        }
+        
+        input, select {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #2c5530;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .btn-primary {
+            background: #2c5530;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3d6d40;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(44, 85, 48, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .status {
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .data-section {
+            padding: 30px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #2c5530 0%, #3d6d40 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        th {
+            background: #2c5530;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .delete-btn:hover {
+            background: #c82333;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌲 Misurazione Volume Tronchi</h1>
+            <p>Sistema di acquisizione dati da TTGO Display</p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div class="input-group">
+                    <label>Lunghezza (m):</label>
+                    <input type="number" id="length" step="0.1" value="3.0" min="0.1">
+                </div>
+                <div class="input-group">
+                    <label>Specie:</label>
+                    <select id="species">
+                        <option>Abete</option>
+                        <option>Pino</option>
+                        <option>Larice</option>
+                        <option>Faggio</option>
+                        <option>Quercia</option>
+                        <option>Castagno</option>
+                        <option>Altro</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Nome File:</label>
+                    <input type="text" id="filename" placeholder="es: taglio_ottobre" value="misure">
+                </div>
+                <div class="input-group">
+                    <label>&nbsp;</label>
+                    <button class="btn-success" onclick="sendFilename()" style="margin-top: 0;">✓ Conferma Nome File</button>
+                </div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn-primary" onclick="connectBluetooth()">📡 Connetti TTGO</button>
+                <button class="btn-secondary" onclick="addManualEntry()">➕ Inserimento Manuale</button>
+                <button class="btn-success" onclick="exportToODS()">💾 Esporta ODS</button>
+                <button class="btn-success" onclick="exportToCSV()">📄 Esporta CSV</button>
+                <button class="btn-secondary" onclick="clearData()">🗑️ Cancella Dati</button>
+            </div>
+            
+            <div id="status" class="status disconnected">
+                ❌ Non connesso - File: <span id="currentFile">-</span>
+            </div>
+        </div>
+        
+        <div class="data-section">
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Tronchi Misurati</h3>
+                    <div class="value" id="totalLogs">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Volume Totale (m³)</h3>
+                    <div class="value" id="totalVolume">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Diametro Medio (cm)</h3>
+                    <div class="value" id="avgDiameter">0.0</div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Data/Ora</th>
+                            <th>Diametro (cm)</th>
+                            <th>Lunghezza (m)</th>
+                            <th>Volume (m³)</th>
+                            <th>Specie</th>
+                            <th>Note</th>
+                            <th>File</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let measurements = [];
+        let bleDevice = null;
+        let bleCharacteristic = null;
+        let currentFilename = 'misure';
+
+        // Service Worker per PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:application/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZnVuY3Rpb24oZSkge30pOw==');
+        }
+
+        // Carica dati salvati
+        function loadData() {
+            const saved = localStorage.getItem('timberMeasurements');
+            if (saved) {
+                measurements = JSON.parse(saved);
+                updateDisplay();
+            }
+        }
+
+        // Salva dati
+        function saveData() {
+            localStorage.setItem('timberMeasurements', JSON.stringify(measurements));
+        }
+
+        // Connessione Bluetooth
+        async function connectBluetooth() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'TTGO' }],
+                    optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb']
+                });
+                
+                bleDevice = device;
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+                bleCharacteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+                
+                await bleCharacteristic.startNotifications();
+                bleCharacteristic.addEventListener('characteristicvaluechanged', handleBleData);
+                
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').innerHTML = '✅ Connesso a ' + device.name + ' - File: <span id="currentFile">' + currentFilename + '</span>';
+                
+                // Richiedi nome file corrente dalla board
+                setTimeout(requestCurrentFilename, 1000);
+                
+            } catch (error) {
+                alert('Errore connessione: ' + error.message);
+            }
+        }
+
+        // Richiedi nome file corrente dalla board
+        async function requestCurrentFilename() {
+            if (bleCharacteristic) {
+                try {
+                    const encoder = new TextEncoder();
+                    await bleCharacteristic.writeValue(encoder.encode('GET_FILENAME'));
+                } catch (error) {
+                    console.error('Errore richiesta filename:', error);
+                }
+            }
+        }
+
+        // Invia nome file alla board
+        async function sendFilename() {
+            const filename = document.getElementById('filename').value.trim();
+            
+            if (!filename) {
+                alert('Inserisci un nome file valido!');
+                return;
+            }
+            
+            if (!bleCharacteristic) {
+                alert('Connetti prima la board TTGO!');
+                return;
+            }
+            
+            try {
+                const encoder = new TextEncoder();
+                await bleCharacteristic.writeValue(encoder.encode('FILE:' + filename));
+                
+                currentFilename = filename;
+                document.getElementById('currentFile').textContent = filename;
+                
+                // Feedback visivo
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Inviato!';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+                
+            } catch (error) {
+                alert('Errore invio nome file: ' + error.message);
+            }
+        }
+
+        // Gestione dati Bluetooth
+        function handleBleData(event) {
+            const value = new TextDecoder().decode(event.target.value);
+            
+            // Se riceve il nome file dalla board
+            if (value.startsWith('FILENAME:')) {
+                const receivedFilename = value.substring(9);
+                currentFilename = receivedFilename;
+                document.getElementById('filename').value = receivedFilename;
+                document.getElementById('currentFile').textContent = receivedFilename;
+                return;
+            }
+            
+            // Altrimenti è un valore di diametro
+            const diameter = parseFloat(value);
+            
+            if (!isNaN(diameter) && diameter > 0) {
+                addMeasurement(diameter);
+            }
+        }
+
+        // Aggiungi misurazione
+        function addMeasurement(diameter) {
+            const length = parseFloat(document.getElementById('length').value);
+            const species = document.getElementById('species').value;
+            
+            const radius = diameter / 200; // cm a m e diviso 2
+            const volume = Math.PI * radius * radius * length;
+            
+            const measurement = {
+                id: Date.now(),
+                timestamp: new Date().toLocaleString('it-IT'),
+                diameter: diameter.toFixed(1),
+                length: length.toFixed(2),
+                volume: volume.toFixed(4),
+                species: species,
+                filename: currentFilename
+            };
+            
+            measurements.unshift(measurement);
+            saveData();
+            updateDisplay();
+        }
+
+        // Inserimento manuale
+        function addManualEntry() {
+            const diameter = prompt('Inserisci il diametro (cm):');
+            if (diameter && !isNaN(diameter) && diameter > 0) {
+                addMeasurement(parseFloat(diameter));
+            }
+        }
+
+        // Aggiorna visualizzazione
+        function updateDisplay() {
+            const tbody = document.getElementById('dataBody');
+            tbody.innerHTML = '';
+            
+            measurements.forEach((m, index) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${measurements.length - index}</td>
+                    <td>${m.timestamp}</td>
+                    <td>${m.diameter}</td>
+                    <td>${m.length}</td>
+                    <td>${m.volume}</td>
+                    <td>${m.species}</td>
+                    <td>${m.filename || '-'}</td>
+                    <td><button class="delete-btn" onclick="deleteMeasurement(${m.id})">Elimina</button></td>
+                `;
+            });
+            
+            // Aggiorna statistiche
+            const totalVolume = measurements.reduce((sum, m) => sum + parseFloat(m.volume), 0);
+            const avgDiameter = measurements.length > 0 
+                ? measurements.reduce((sum, m) => sum + parseFloat(m.diameter), 0) / measurements.length 
+                : 0;
+            
+            document.getElementById('totalLogs').textContent = measurements.length;
+            document.getElementById('totalVolume').textContent = totalVolume.toFixed(2);
+            document.getElementById('avgDiameter').textContent = avgDiameter.toFixed(1);
+        }
+
+        // Elimina misurazione
+        function deleteMeasurement(id) {
+            if (confirm('Eliminare questa misurazione?')) {
+                measurements = measurements.filter(m => m.id !== id);
+                saveData();
+                updateDisplay();
+            }
+        }
+
+        // Esporta CSV
+        function exportToCSV() {
+            let csv = 'Numero,Data/Ora,Diametro (cm),Lunghezza (m),Volume (m³),Specie,File\n';
+            measurements.forEach((m, i) => {
+                csv += `${measurements.length - i},"${m.timestamp}",${m.diameter},${m.length},${m.volume},"${m.species}","${m.filename || '-'}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tronchi_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        // Esporta ODS (formato LibreOffice)
+        function exportToODS() {
+            let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" 
+                 xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+                 xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+                 office:version="1.2">
+<office:body>
+<office:spreadsheet>
+<table:table table:name="Misurazioni">
+<table:table-row>
+  <table:table-cell office:value-type="string"><text:p>Numero</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Data/Ora</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Diametro (cm)</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Lunghezza (m)</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Volume (m³)</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>Specie</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>File</text:p></table:table-cell>
+</table:table-row>`;
+
+            measurements.forEach((m, i) => {
+                xml += `
+<table:table-row>
+  <table:table-cell office:value-type="float" office:value="${measurements.length - i}"><text:p>${measurements.length - i}</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>${m.timestamp}</text:p></table:table-cell>
+  <table:table-cell office:value-type="float" office:value="${m.diameter}"><text:p>${m.diameter}</text:p></table:table-cell>
+  <table:table-cell office:value-type="float" office:value="${m.length}"><text:p>${m.length}</text:p></table:table-cell>
+  <table:table-cell office:value-type="float" office:value="${m.volume}"><text:p>${m.volume}</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>${m.species}</text:p></table:table-cell>
+  <table:table-cell office:value-type="string"><text:p>${m.filename || '-'}</text:p></table:table-cell>
+</table:table-row>`;
+            });
+
+            xml += `
+</table:table>
+</office:spreadsheet>
+</office:body>
+</office:document>`;
+
+            const blob = new Blob([xml], { type: 'application/vnd.oasis.opendocument.spreadsheet' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tronchi_${new Date().toISOString().split('T')[0]}.ods`;
+            a.click();
+        }
+
+        // Cancella dati
+        function clearData() {
+            if (confirm('Eliminare tutte le misurazioni?')) {
+                measurements = [];
+                saveData();
+                updateDisplay();
+            }
+        }
+
+        // Inizializza
+        loadData();
+    </script>
+</body>
+</html>
