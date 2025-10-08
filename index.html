@@ -446,6 +446,22 @@
                 return;
             }
             
+            // Se riceve notifica di eliminazione dalla board
+            if (value.startsWith('DELETED:')) {
+                const deletedNumber = parseInt(value.substring(8));
+                console.log('Board ha eliminato misurazione #' + deletedNumber);
+                
+                // Trova e rimuovi la misurazione corrispondente dalla PWA
+                if (deletedNumber > 0 && deletedNumber <= measurements.length) {
+                    const indexToDelete = measurements.length - deletedNumber;
+                    const idToDelete = measurements[indexToDelete].id;
+                    measurements = measurements.filter(m => m.id !== idToDelete);
+                    saveData();
+                    updateDisplay();
+                }
+                return;
+            }
+            
             // Altrimenti è un valore di diametro
             const diameter = parseFloat(value);
             
