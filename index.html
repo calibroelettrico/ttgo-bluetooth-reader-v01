@@ -1,351 +1,339 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Riconoscimento Misure con Training</title>
-    <meta name="theme-color" content="#2c3e50">
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIlJpY29ub3NjaW1lbnRvIE1pc3VyZSBDbSIsCiAgInNob3J0X25hbWUiOiAiTWlzdXJlIGNtIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaWNvbnMvaWNvbi0xOTJ4MTkyLnBuZyIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJpY29ucy9pY29uLTUxMng1MTIucG5nIiwKICAgICAgInNpemVzOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIKICAgIH1dLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSiYLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmZmZmZmYiLAogICJ0aGVtZV9jb2xvciI6ICIjMmMzZTUwIgp9">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Riconoscimento Misure con Training</title>
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIlJpY29ub3NjaW1lbnRvIE1pc3VyZSBDbSIsCiAgInNob3J0X25hbWUiOiAiTWlzdXJlIGNtIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaWNvbnMvaWNvbi0xOTJ4MTkyLnBuZyIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJpY29ucy9pY29uLTUxMng1MTIucG5nIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciCiAgICB9CiAgXSwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmZmZmZmYiLAogICJ0aGVtZV9jb2xvciI6ICIjMmMzZTUwIgp9">
 
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            height: 100vh;
-            background-color: #ecf0f1;
-            overflow: hidden;
-        }
-        #main-container {
-            width: 100%;
-            max-width: 600px;
-            text-align: center;
-            padding-top: 10px;
-        }
-        #view-container {
-            position: relative;
-            width: 90%;
-            margin: 0 auto;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            touch-action: none;
-        }
-        #video, #capture-canvas {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        #capture-canvas {
-            display: none; /* Nascosto finché non si cattura un'immagine */
-        }
-        #selection-box {
-            position: absolute;
-            border: 2px dashed #e74c3c;
-            background-color: rgba(231, 76, 60, 0.2);
-            box-sizing: border-box;
-            pointer-events: none;
-            display: none;
-        }
-        #result-container {
-            background-color: #2c3e50;
-            color: white;
-            padding: 15px;
-            margin: 10px 5%;
-            border-radius: 8px;
-            font-size: 1.8em;
-            font-weight: bold;
-            min-height: 1.5em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .controls-panel {
-            background-color: white;
-            padding: 15px;
-            margin: 10px 5%;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-        .button-group {
-            display: flex;
-            justify-content: space-around;
-            gap: 10px;
-        }
-        button {
-            padding: 12px 20px;
-            font-size: 1em;
-            font-weight: bold;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            flex-grow: 1;
-        }
-        #recognize-btn { background-color: #2980b9; color: white; }
-        #correction-btn { background-color: #e67e22; color: white; }
-        #save-settings-btn { background-color: #27ae60; color: white; }
-        #new-scan-btn { background-color: #95a5a6; color: white; display: none; }
-        
-        #correction-panel { display: none; }
-        .slider-group { margin-top: 15px; text-align: left; }
-        .slider-group label { display: block; margin-bottom: 5px; color: #555;}
-        input[type="range"] { width: 100%; }
-        #whitelist-input {
-            width: calc(100% - 20px);
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 1em;
-            margin-top: 10px;
-        }
-        #status {
-            margin-top: 10px; font-style: italic; color: #666;
-        }
-    </style>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            background-color: #ecf0f1;
+            overflow: hidden;
+        }
+        #main-container {
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            padding-top: 10px;
+        }
+        #view-container {
+            position: relative;
+            width: 90%;
+            margin: 0 auto;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            touch-action: none;
+        }
+        #video, #capture-canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        #capture-canvas {
+            display: none; /* Nascosto finché non si cattura un'immagine */
+        }
+        #selection-box {
+            position: absolute;
+            border: 2px dashed #e74c3c;
+            background-color: rgba(231, 76, 60, 0.2);
+            box-sizing: border-box;
+            pointer-events: none;
+            display: none;
+        }
+        #result-container {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px;
+            margin: 10px 5%;
+            border-radius: 8px;
+            font-size: 1.8em;
+            font-weight: bold;
+            min-height: 1.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .controls-panel {
+            background-color: white;
+            padding: 15px;
+            margin: 10px 5%;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .button-group {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            flex-grow: 1;
+        }
+        #recognize-btn { background-color: #2980b9; color: white; }
+        #correction-btn { background-color: #e67e22; color: white; }
+        #save-settings-btn { background-color: #27ae60; color: white; }
+        #new-scan-btn { background-color: #95a5a6; color: white; display: none; }
+        
+        #correction-panel { display: none; }
+        .slider-group { margin-top: 15px; text-align: left; }
+        .slider-group label { display: block; margin-bottom: 5px; color: #555;}
+        input[type="range"] { width: 100%; }
+        #whitelist-input {
+            width: calc(100% - 20px);
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+            margin-top: 10px;
+        }
+        #status {
+            margin-top: 10px; font-style: italic; color: #666;
+        }
+    </style>
 </head>
 <body>
 
-    <div id="main-container">
-        <div id="view-container">
-            <video id="video" playsinline autoplay muted></video>
-            <canvas id="capture-canvas"></canvas>
-            <div id="selection-box"></div>
-        </div>
+    <div id="main-container">
+        <div id="view-container">
+            <video id="video" playsinline autoplay muted></video>
+            <canvas id="capture-canvas"></canvas>
+            <div id="selection-box"></div>
+        </div>
 
-        <div id="result-container">-- cm</div>
-        <p id="status">Trascina sul video per selezionare un'area.</p>
+        <div id="result-container">-- cm</div>
+        <p id="status">Trascina sul video per selezionare un'area.</p>
 
-        <div class="controls-panel" id="main-controls">
-             <div class="button-group">
-                <button id="recognize-btn">Riconosci</button>
-                <button id="new-scan-btn">Nuova Scansione</button>
-            </div>
-        </div>
+        <div class="controls-panel" id="main-controls">
+             <div class="button-group">
+                <button id="recognize-btn">Riconosci</button>
+                <button id="new-scan-btn">Nuova Scansione</button>
+            </div>
+        </div>
 
-        <div class="controls-panel" id="correction-panel">
-            <p><strong>Risultato errato?</strong> Regola i filtri e riprova.</p>
-            <div class="slider-group">
-                <label for="contrast-slider">Contrasto: <span id="contrast-value">100</span>%</label>
-                <input type="range" id="contrast-slider" min="50" max="300" value="100">
-            </div>
-            <div class="slider-group">
-                <label for="brightness-slider">Luminosità: <span id="brightness-value">100</span>%</label>
-                <input type="range" id="brightness-slider" min="50" max="200" value="100">
-            </div>
-            <input type="text" id="whitelist-input" value="0123456789.">
-            <div class="button-group" style="margin-top: 15px;">
-                <button id="save-settings-btn">Salva Impostazioni</button>
-            </div>
-        </div>
-    </div>
+        <div class="controls-panel" id="correction-panel">
+            <p><strong>Risultato errato?</strong> Regola i filtri e riprova.</p>
+            <div class="slider-group">
+                <label for="contrast-slider">Contrasto: <span id="contrast-value">100</span>%</label>
+                <input type="range" id="contrast-slider" min="50" max="300" value="100">
+            </div>
+            <div class="slider-group">
+                <label for="brightness-slider">Luminosità: <span id="brightness-value">100</span>%</label>
+                <input type="range" id="brightness-slider" min="50" max="200" value="100">
+            </div>
+            <input type="text" id="whitelist-input" value="0123456789.">
+            <div class="button-group" style="margin-top: 15px;">
+                <button id="save-settings-btn">Salva Impostazioni</button>
+            </div>
+        </div>
+    </div>
 
-    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js'></script>
-    <script>
-        // Elementi UI
-        const video = document.getElementById('video');
-        const viewContainer = document.getElementById('view-container');
-        const selectionBox = document.getElementById('selection-box');
-        const resultContainer = document.getElementById('result-container');
-        const statusElement = document.getElementById('status');
-        const whitelistInput = document.getElementById('whitelist-input');
-        const recognizeBtn = document.getElementById('recognize-btn');
-        const newScanBtn = document.getElementById('new-scan-btn');
-        const saveSettingsBtn = document.getElementById('save-settings-btn');
-        const correctionPanel = document.getElementById('correction-panel');
-        const captureCanvas = document.getElementById('capture-canvas');
-        const ctx = captureCanvas.getContext('2d');
-        const contrastSlider = document.getElementById('contrast-slider');
-        const brightnessSlider = document.getElementById('brightness-slider');
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js'></script>
+    <script>
+        // Elementi UI
+        const video = document.getElementById('video');
+        const viewContainer = document.getElementById('view-container');
+        const selectionBox = document.getElementById('selection-box');
+        const resultContainer = document.getElementById('result-container');
+        const statusElement = document.getElementById('status');
+        const whitelistInput = document.getElementById('whitelist-input');
+        const recognizeBtn = document.getElementById('recognize-btn');
+        const newScanBtn = document.getElementById('new-scan-btn');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        const correctionPanel = document.getElementById('correction-panel');
+        const captureCanvas = document.getElementById('capture-canvas');
+        const ctx = captureCanvas.getContext('2d');
+        const contrastSlider = document.getElementById('contrast-slider');
+        const brightnessSlider = document.getElementById('brightness-slider');
 
-        // Stato dell'applicazione
-        let isRecognizing = false;
-        let isSelecting = false;
-        let selectionRect = { x: 0, y: 0, width: 0, height: 0 };
-        let startCoords = { x: 0, y: 0 };
-        let originalCapturedImage = null;
-        
-        // --- SERVICE WORKER ---
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('data:application/javascript;base64,' + btoa(`const CACHE_NAME = 'measure-cm-cache-v3'; const urlsToCache = ['/', 'https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js']; self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache)))); self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));`)).then(()=>console.log('SW registrato')).catch(err=>console.error(err));
-        }
+        // Stato dell'applicazione
+        let isRecognizing = false;
+        let isSelecting = false;
+        let selectionRect = { x: 0, y: 0, width: 0, height: 0 };
+        let startCoords = { x: 0, y: 0 };
+        let originalCapturedImage = null;
+        
+        // --- SERVICE WORKER ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:application/javascript;base64,' + btoa(`const CACHE_NAME = 'measure-cm-cache-v3'; const urlsToCache = ['/', 'https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js']; self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache)))); self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));`)).then(()=>console.log('SW registrato')).catch(err=>console.error(err));
+        }
 
-        // --- GESTIONE SELEZIONE AREA ---
-        function getEventCoords(event) {
-            const rect = viewContainer.getBoundingClientRect();
-            const touch = event.touches ? event.touches[0] : event;
-            return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
-        }
-        function startSelection(event) {
-            if (video.style.display === 'none') return;
-            isSelecting = true;
-            startCoords = getEventCoords(event);
-            selectionBox.style.display = 'block';
-            Object.assign(selectionBox.style, { left: `${startCoords.x}px`, top: `${startCoords.y}px`, width: '0px', height: '0px' });
-        }
-        function moveSelection(event) {
-            if (!isSelecting) return;
-            const currentCoords = getEventCoords(event);
-            const x = Math.min(startCoords.x, currentCoords.x);
-            const y = Math.min(startCoords.y, currentCoords.y);
-            const width = Math.abs(currentCoords.x - startCoords.x);
-            const height = Math.abs(currentCoords.y - startCoords.y);
-            Object.assign(selectionBox.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px` });
-        }
-        function endSelection() {
-            if (!isSelecting) return;
-            isSelecting = false;
-            const style = selectionBox.style;
-            selectionRect = { x: parseFloat(style.left), y: parseFloat(style.top), width: parseFloat(style.width), height: parseFloat(style.height) };
-            if (selectionRect.width < 10 || selectionRect.height < 10) {
-                selectionBox.style.display = 'none';
-                selectionRect = { width: 0 };
-            }
-        }
-        viewContainer.addEventListener('mousedown', startSelection);
-        viewContainer.addEventListener('mousemove', moveSelection);
-        window.addEventListener('mouseup', endSelection);
-        viewContainer.addEventListener('touchstart', startSelection, { passive: true });
-        viewContainer.addEventListener('touchmove', moveSelection, { passive: true });
-        window.addEventListener('touchend', endSelection);
+        // --- GESTIONE SELEZIONE AREA ---
+        function getEventCoords(event) {
+            const rect = viewContainer.getBoundingClientRect();
+            const touch = event.touches ? event.touches[0] : event;
+            return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+        }
+        function startSelection(event) {
+            if (video.style.display === 'none') return;
+            isSelecting = true;
+            startCoords = getEventCoords(event);
+            selectionBox.style.display = 'block';
+            Object.assign(selectionBox.style, { left: `${startCoords.x}px`, top: `${startCoords.y}px`, width: '0px', height: '0px' });
+        }
+        function moveSelection(event) {
+            if (!isSelecting) return;
+            const currentCoords = getEventCoords(event);
+            const x = Math.min(startCoords.x, currentCoords.x);
+            const y = Math.min(startCoords.y, currentCoords.y);
+            const width = Math.abs(currentCoords.x - startCoords.x);
+            const height = Math.abs(currentCoords.y - startCoords.y);
+            Object.assign(selectionBox.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px` });
+        }
+        function endSelection() {
+            if (!isSelecting) return;
+            isSelecting = false;
+            const style = selectionBox.style;
+            selectionRect = { x: parseFloat(style.left), y: parseFloat(style.top), width: parseFloat(style.width), height: parseFloat(style.height) };
+            if (selectionRect.width < 10 || selectionRect.height < 10) {
+                selectionBox.style.display = 'none';
+                selectionRect = { width: 0 };
+            }
+        }
+        viewContainer.addEventListener('mousedown', startSelection);
+        viewContainer.addEventListener('mousemove', moveSelection);
+        window.addEventListener('mouseup', endSelection);
+        viewContainer.addEventListener('touchstart', startSelection, { passive: true });
+        viewContainer.addEventListener('touchmove', moveSelection, { passive: true });
+        window.addEventListener('touchend', endSelection);
 
-        // --- GESTIONE FOTOCAMERA E STATO UI ---
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                video.srcObject = stream;
-                await video.play();
-                loadSettings();
-                statusElement.textContent = 'Fotocamera attiva. Seleziona un\'area.';
-            } catch (err) {
-                statusElement.textContent = "Errore fotocamera. Concedi i permessi.";
-            }
-        }
-        
-        function switchToLiveView() {
-            video.style.display = 'block';
-            captureCanvas.style.display = 'none';
-            recognizeBtn.style.display = 'block';
-            newScanBtn.style.display = 'none';
-            correctionPanel.style.display = 'none';
-            selectionBox.style.display = 'block';
-            originalCapturedImage = null;
-            statusElement.textContent = 'Seleziona una nuova area.';
-            resultContainer.textContent = '-- cm';
-        }
+        // --- GESTIONE FOTOCAMERA E STATO UI ---
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+                await video.play();
+                loadSettings();
+                statusElement.textContent = 'Fotocamera attiva. Seleziona un\'area.';
+            } catch (err) {
+                statusElement.textContent = "Errore fotocamera. Concedi i permessi.";
+            }
+        }
+        
+        function switchToLiveView() {
+            video.style.display = 'block';
+            captureCanvas.style.display = 'none';
+            recognizeBtn.style.display = 'block';
+            newScanBtn.style.display = 'none';
+            correctionPanel.style.display = 'none';
+            selectionBox.style.display = 'block';
+            originalCapturedImage = null;
+            statusElement.textContent = 'Seleziona una nuova area.';
+            resultContainer.textContent = '-- cm';
+        }
 
-        // --- LOGICA DI CATTURA E FILTRI IMMAGINE (MODIFICATA) ---
-        function captureSelection() {
-            if (video.readyState < 3 || selectionRect.width <= 0) {
-                alert("Per favore, seleziona un'area valida sul video prima di riconoscere.");
-                return;
-            }
-            
-            const scaleX = video.videoWidth / video.clientWidth;
-            const scaleY = video.videoHeight / video.clientHeight;
+        // --- LOGICA DI CATTURA E FILTRI IMMAGINE ---
+        function captureSelection() {
+            if (video.readyState < 3 || selectionRect.width <= 0) {
+                alert("Per favore, seleziona un'area valida sul video prima di riconoscere.");
+                return;
+            }
+            
+            const scaleX = video.videoWidth / video.clientWidth;
+            const scaleY = video.videoHeight / video.clientHeight;
 
-            const sx = selectionRect.x * scaleX;
-            const sy = selectionRect.y * scaleY;
-            const sWidth = selectionRect.width * scaleX;
-            const sHeight = selectionRect.height * scaleY;
-            
-            // Imposta le dimensioni del canvas invertite per la rotazione
-            captureCanvas.width = sHeight;
-            captureCanvas.height = sWidth;
-            
-            ctx.save(); // Salva lo stato corrente
+            const sx = selectionRect.x * scaleX;
+            const sy = selectionRect.y * scaleY;
+            const sWidth = selectionRect.width * scaleX;
+            const sHeight = selectionRect.height * scaleY;
+            
+            captureCanvas.width = sWidth;
+            captureCanvas.height = sHeight;
+            
+            ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+            originalCapturedImage = ctx.getImageData(0, 0, sWidth, sHeight);
 
-            // Esegue la rotazione di 90 gradi a sinistra (antiorario)
-            ctx.translate(0, sWidth); // Trasla l'origine
-            ctx.rotate(-Math.PI / 2); // Ruota di -90 gradi
+            video.style.display = 'none';
+            captureCanvas.style.display = 'block';
+            selectionBox.style.display = 'none';
+            
+            applyFiltersAndRecognize();
+        }
 
-            // Disegna l'immagine catturata (il rettangolo di destinazione deve essere sHeight x sWidth, a causa della rotazione)
-            ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sHeight, sWidth);
+        function applyFiltersAndRecognize() {
+            if (!originalCapturedImage) return;
 
-            ctx.restore(); // Ripristina lo stato
-            
-            // Ottiene i dati dell'immagine ruotata (usa le nuove dimensioni del canvas)
-            originalCapturedImage = ctx.getImageData(0, 0, sHeight, sWidth);
+            const contrast = contrastSlider.value;
+            const brightness = brightnessSlider.value;
+            document.getElementById('contrast-value').textContent = contrast;
+            document.getElementById('brightness-value').textContent = brightness;
+            
+            ctx.filter = `contrast(${contrast}%) brightness(${brightness}%)`;
+            ctx.putImageData(originalCapturedImage, 0, 0);
 
-            video.style.display = 'none';
-            captureCanvas.style.display = 'block';
-            selectionBox.style.display = 'none';
-            
-            applyFiltersAndRecognize();
-        }
+            runOCR();
+        }
 
-        function applyFiltersAndRecognize() {
-            if (!originalCapturedImage) return;
+        // --- OCR ---
+        async function runOCR() {
+            if (isRecognizing) return;
+            isRecognizing = true;
+            statusElement.textContent = 'Riconoscimento in corso...';
+            resultContainer.textContent = '...';
+            
+            try {
+                const { data: { text } } = await Tesseract.recognize(
+                    captureCanvas, 'eng', 
+                    { tessedit_char_whitelist: whitelistInput.value }
+                );
+                const numbersOnly = text.replace(/[^0-9.]/g, '').trim();
+                resultContainer.textContent = numbersOnly ? `${numbersOnly} cm` : 'Nessun numero trovato';
+            } catch (error) {
+                console.error("Errore OCR:", error);
+                resultContainer.textContent = 'Errore OCR';
+            } finally {
+                isRecognizing = false;
+                recognizeBtn.style.display = 'block';
+                newScanBtn.style.display = 'block';
+                correctionPanel.style.display = 'block';
+                statusElement.textContent = 'Regola i filtri se il risultato non è corretto.';
+            }
+        }
+        
+        // --- IMPOSTAZIONI PERSISTENTI ---
+        function saveSettings() {
+            const settings = {
+                contrast: contrastSlider.value,
+                brightness: brightnessSlider.value,
+                whitelist: whitelistInput.value
+            };
+            localStorage.setItem('ocrSettings', JSON.stringify(settings));
+            alert('Impostazioni salvate!');
+        }
 
-            const contrast = contrastSlider.value;
-            const brightness = brightnessSlider.value;
-            document.getElementById('contrast-value').textContent = contrast;
-            document.getElementById('brightness-value').textContent = brightness;
-            
-            ctx.filter = `contrast(${contrast}%) brightness(${brightness}%)`;
-            ctx.putImageData(originalCapturedImage, 0, 0);
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('ocrSettings'));
+            if (settings) {
+                contrastSlider.value = settings.contrast;
+                brightnessSlider.value = settings.brightness;
+                whitelistInput.value = settings.whitelist;
+            }
+        }
 
-            runOCR();
-        }
-
-        // --- OCR ---
-        async function runOCR() {
-            if (isRecognizing) return;
-            isRecognizing = true;
-            statusElement.textContent = 'Riconoscimento in corso...';
-            resultContainer.textContent = '...';
-            
-            try {
-                const { data: { text } } = await Tesseract.recognize(
-                    captureCanvas, 'eng', 
-                    { tessedit_char_whitelist: whitelistInput.value }
-                );
-                const numbersOnly = text.replace(/[^0-9.]/g, '').trim();
-                resultContainer.textContent = numbersOnly ? `${numbersOnly} cm` : 'Nessun numero trovato';
-            } catch (error) {
-                console.error("Errore OCR:", error);
-                resultContainer.textContent = 'Errore OCR';
-            } finally {
-                isRecognizing = false;
-                recognizeBtn.style.display = 'block';
-                newScanBtn.style.display = 'block';
-                correctionPanel.style.display = 'block';
-                statusElement.textContent = 'Regola i filtri se il risultato non è corretto.';
-            }
-        }
-        
-        // --- IMPOSTAZIONI PERSISTENTI ---
-        function saveSettings() {
-            const settings = {
-                contrast: contrastSlider.value,
-                brightness: brightnessSlider.value,
-                whitelist: whitelistInput.value
-            };
-            localStorage.setItem('ocrSettings', JSON.stringify(settings));
-            alert('Impostazioni salvate!');
-        }
-
-        function loadSettings() {
-            const settings = JSON.parse(localStorage.getItem('ocrSettings'));
-            if (settings) {
-                contrastSlider.value = settings.contrast;
-                brightnessSlider.value = settings.brightness;
-                whitelistInput.value = settings.whitelist;
-            }
-        }
-
-        // --- EVENT LISTENERS ---
-        recognizeBtn.addEventListener('click', captureSelection);
-        newScanBtn.addEventListener('click', switchToLiveView);
-        saveSettingsBtn.addEventListener('click', saveSettings);
-        contrastSlider.addEventListener('input', applyFiltersAndRecognize);
-        brightnessSlider.addEventListener('input', applyFiltersAndRecognize);
-        
-        // --- AVVIO ---
-        startCamera();
-    </script>
+        // --- EVENT LISTENERS ---
+        recognizeBtn.addEventListener('click', captureSelection);
+        newScanBtn.addEventListener('click', switchToLiveView);
+        saveSettingsBtn.addEventListener('click', saveSettings);
+        contrastSlider.addEventListener('input', applyFiltersAndRecognize);
+        brightnessSlider.addEventListener('input', applyFiltersAndRecognize);
+        
+        // --- AVVIO ---
+        startCamera();
+    </script>
 </body>
 </html>
