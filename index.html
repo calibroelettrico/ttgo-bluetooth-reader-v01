@@ -2,308 +2,337 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Macro-Riconoscimento Numerico WAP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Riconoscimento Misure con Training</title>
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIlJpY29ub3NjaW1lbnRvIE1pc3VyZSBDbSIsCiAgInNob3J0X25hbWUiOiAiTWlzdXJlIGNtIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaWNvbnMvaWNvbi0xOTJ4MTkyLnBuZyIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJpY29ucy9pY29uLTUxMng1MTIucG5nIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciCiAgICB9CiAgXSwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmZmZmZmYiLAogICJ0aGVtZV9jb2xvciI6ICIjMmMzZTUwIgp9">
+
     <style>
-        /* Stili per adattarsi a uno smartphone */
-        body, html {
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
             padding: 0;
-            height: 100%;
-            overflow: hidden; /* Evita lo scrolling */
-            font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
-        }
-
-        /* Contenitore della Camera (Metà Superiore) */
-        #camera-container {
-            flex: 1; /* Occupa la metà superiore (50%) */
-            position: relative;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            background-color: #ecf0f1;
             overflow: hidden;
-            background-color: #000;
         }
-
-        #video-feed {
+        #main-container {
             width: 100%;
-            height: 100%;
-            object-fit: cover; /* Assicura che il video riempia l'area */
-            transform: scaleX(-1); /* Specchia il video se è la fotocamera frontale, altrimenti si può rimuovere */
+            max-width: 600px;
+            text-align: center;
+            padding-top: 10px;
         }
-
-        /* Area di Selezione (Riquadro) */
+        #view-container {
+            position: relative;
+            width: 90%;
+            margin: 0 auto;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            touch-action: none;
+        }
+        #video, #capture-canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        #capture-canvas {
+            display: none; /* Nascosto finché non si cattura un'immagine */
+        }
         #selection-box {
             position: absolute;
-            border: 2px solid lime;
-            background-color: rgba(0, 255, 0, 0.2);
-            cursor: move;
-            display: none; /* Inizialmente nascosto */
+            border: 2px dashed #e74c3c;
+            background-color: rgba(231, 76, 60, 0.2);
             box-sizing: border-box;
-            user-select: none;
-            touch-action: none; /* Per un corretto dragging su touch screen */
-        }
-
-        /* Controlli (Metà Inferiore) */
-        #controls-container {
-            flex: 1; /* Occupa la metà inferiore (50%) */
-            padding: 10px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background-color: #f0f0f0;
-        }
-
-        .control-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        button {
-            padding: 15px;
-            flex-grow: 1;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            color: white;
-            font-weight: bold;
-        }
-
-        #recognize-btn { background-color: #007bff; }
-        #correct-btn { background-color: #28a745; }
-
-        input[type="text"], input[type="number"], #recognition-result {
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-            box-sizing: border-box;
-            flex-grow: 2; /* Più spazio per il risultato/input */
-        }
-
-        #recognition-result {
-            background-color: white;
-            text-align: center;
-            font-weight: bold;
-            color: #d9534f;
-        }
-
-        /* Elemento nascosto per la cattura dell'immagine */
-        #photo-canvas {
+            pointer-events: none;
             display: none;
+        }
+        #result-container {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px;
+            margin: 10px 5%;
+            border-radius: 8px;
+            font-size: 1.8em;
+            font-weight: bold;
+            min-height: 1.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .controls-panel {
+            background-color: white;
+            padding: 15px;
+            margin: 10px 5%;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .button-group {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            flex-grow: 1;
+        }
+        #recognize-btn { background-color: #2980b9; color: white; }
+        #correction-btn { background-color: #e67e22; color: white; }
+        #save-settings-btn { background-color: #27ae60; color: white; }
+        #new-scan-btn { background-color: #95a5a6; color: white; display: none; }
+        
+        #correction-panel { display: none; }
+        .slider-group { margin-top: 15px; text-align: left; }
+        .slider-group label { display: block; margin-bottom: 5px; color: #555;}
+        input[type="range"] { width: 100%; }
+        #whitelist-input {
+            width: calc(100% - 20px);
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+            margin-top: 10px;
+        }
+        #status {
+            margin-top: 10px; font-style: italic; color: #666;
         }
     </style>
 </head>
 <body>
 
-    <div id="camera-container">
-        <video id="video-feed" autoplay playsinline></video>
-        <div id="selection-box"></div>
-    </div>
-
-    <div id="controls-container">
-        <div class="control-group">
-            <button id="recognize-btn">RICONOSCI</button>
-            <div id="recognition-result">Risposta (cm)</div>
+    <div id="main-container">
+        <div id="view-container">
+            <video id="video" playsinline autoplay muted></video>
+            <canvas id="capture-canvas"></canvas>
+            <div id="selection-box"></div>
         </div>
 
-        <div class="control-group">
-            <button id="correct-btn">CORREGGI</button>
-            <input type="number" id="correction-input" placeholder="Inserisci il numero corretto" pattern="[0-9]*" inputmode="numeric">
+        <div id="result-container">-- cm</div>
+        <p id="status">Trascina sul video per selezionare un'area.</p>
+
+        <div class="controls-panel" id="main-controls">
+             <div class="button-group">
+                <button id="recognize-btn">Riconosci</button>
+                <button id="new-scan-btn">Nuova Scansione</button>
+            </div>
         </div>
 
-        <p style="font-size: 0.8em; color: #555;">
-            *Nota: OCR/IA sono simulati. In un'applicazione reale, occorrerebbe una libreria OCR/ML e un modello.
-        </p>
+        <div class="controls-panel" id="correction-panel">
+            <p><strong>Risultato errato?</strong> Regola i filtri e riprova.</p>
+            <div class="slider-group">
+                <label for="contrast-slider">Contrasto: <span id="contrast-value">100</span>%</label>
+                <input type="range" id="contrast-slider" min="50" max="300" value="100">
+            </div>
+            <div class="slider-group">
+                <label for="brightness-slider">Luminosità: <span id="brightness-value">100</span>%</label>
+                <input type="range" id="brightness-slider" min="50" max="200" value="100">
+            </div>
+            <input type="text" id="whitelist-input" value="0123456789.">
+            <div class="button-group" style="margin-top: 15px;">
+                <button id="save-settings-btn">Salva Impostazioni</button>
+            </div>
+        </div>
     </div>
 
-    <canvas id="photo-canvas"></canvas>
-
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js'></script>
     <script>
-        const video = document.getElementById('video-feed');
-        const cameraContainer = document.getElementById('camera-container');
+        // Elementi UI
+        const video = document.getElementById('video');
+        const viewContainer = document.getElementById('view-container');
         const selectionBox = document.getElementById('selection-box');
+        const resultContainer = document.getElementById('result-container');
+        const statusElement = document.getElementById('status');
+        const whitelistInput = document.getElementById('whitelist-input');
         const recognizeBtn = document.getElementById('recognize-btn');
-        const correctBtn = document.getElementById('correct-btn');
-        const recognitionResult = document.getElementById('recognition-result');
-        const correctionInput = document.getElementById('correction-input');
-        const canvas = document.getElementById('photo-canvas');
-        const ctx = canvas.getContext('2d');
+        const newScanBtn = document.getElementById('new-scan-btn');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        const correctionPanel = document.getElementById('correction-panel');
+        const captureCanvas = document.getElementById('capture-canvas');
+        const ctx = captureCanvas.getContext('2d');
+        const contrastSlider = document.getElementById('contrast-slider');
+        const brightnessSlider = document.getElementById('brightness-slider');
 
-        // Variabili per il Drag and Drop (Spostamento e Ridimensionamento per la Selezione)
-        let isDragging = false;
-        let startX, startY;
-        let offsetX, offsetY;
+        // Stato dell'applicazione
+        let isRecognizing = false;
+        let isSelecting = false;
+        let selectionRect = { x: 0, y: 0, width: 0, height: 0 };
+        let startCoords = { x: 0, y: 0 };
+        let originalCapturedImage = null;
         
-        // --- 1. Gestione della Fotocamera (Macro Simulato) ---
+        // --- SERVICE WORKER ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:application/javascript;base64,' + btoa(`const CACHE_NAME = 'measure-cm-cache-v3'; const urlsToCache = ['/', 'https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js']; self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache)))); self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));`)).then(()=>console.log('SW registrato')).catch(err=>console.error(err));
+        }
+
+        // --- GESTIONE SELEZIONE AREA ---
+        function getEventCoords(event) {
+            const rect = viewContainer.getBoundingClientRect();
+            const touch = event.touches ? event.touches[0] : event;
+            return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+        }
+        function startSelection(event) {
+            if (video.style.display === 'none') return;
+            isSelecting = true;
+            startCoords = getEventCoords(event);
+            selectionBox.style.display = 'block';
+            Object.assign(selectionBox.style, { left: `${startCoords.x}px`, top: `${startCoords.y}px`, width: '0px', height: '0px' });
+        }
+        function moveSelection(event) {
+            if (!isSelecting) return;
+            const currentCoords = getEventCoords(event);
+            const x = Math.min(startCoords.x, currentCoords.x);
+            const y = Math.min(startCoords.y, currentCoords.y);
+            const width = Math.abs(currentCoords.x - startCoords.x);
+            const height = Math.abs(currentCoords.y - startCoords.y);
+            Object.assign(selectionBox.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px` });
+        }
+        function endSelection() {
+            if (!isSelecting) return;
+            isSelecting = false;
+            const style = selectionBox.style;
+            selectionRect = { x: parseFloat(style.left), y: parseFloat(style.top), width: parseFloat(style.width), height: parseFloat(style.height) };
+            if (selectionRect.width < 10 || selectionRect.height < 10) {
+                selectionBox.style.display = 'none';
+                selectionRect = { width: 0 };
+            }
+        }
+        viewContainer.addEventListener('mousedown', startSelection);
+        viewContainer.addEventListener('mousemove', moveSelection);
+        window.addEventListener('mouseup', endSelection);
+        viewContainer.addEventListener('touchstart', startSelection, { passive: true });
+        viewContainer.addEventListener('touchmove', moveSelection, { passive: true });
+        window.addEventListener('touchend', endSelection);
+
+        // --- GESTIONE FOTOCAMERA E STATO UI ---
         async function startCamera() {
             try {
-                // Tenta di accedere alla fotocamera posteriore con risoluzione elevata (per dettaglio)
-                // e focusMode 'macro' o 'close-up' (se supportato, spesso non è una proprietà standard)
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' }, // Fotocamera posteriore
-                        // Prova ad impostare proprietà per simulare "macro"
-                        // La vera macro dipende dall'hardware e dal supporto del browser
-                        width: { ideal: 1920 }, 
-                        height: { ideal: 1080 },
-                        // Esempi di possibili vincoli avanzati (non standard in tutti i browser):
-                        // advanced: [{ focusMode: "close-up" }, { focusDistance: 0.1 }] 
-                    }
-                };
-
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 video.srcObject = stream;
-                // Una volta che il video è caricato, lo specchia nuovamente
-                video.onloadedmetadata = () => {
-                    video.play();
-                    // Assicurati che non ci sia uno specchio se è la camera posteriore
-                    video.style.transform = 'scaleX(1)'; 
-                    // Mostra il riquadro di selezione con un valore predefinito
-                    selectionBox.style.display = 'block';
-                    selectionBox.style.width = '150px';
-                    selectionBox.style.height = '75px';
-                    selectionBox.style.left = (cameraContainer.offsetWidth / 2 - 75) + 'px';
-                    selectionBox.style.top = (cameraContainer.offsetHeight / 2 - 37.5) + 'px';
-                };
+                await video.play();
+                loadSettings();
+                statusElement.textContent = 'Fotocamera attiva. Seleziona un\'area.';
             } catch (err) {
-                console.error("Errore nell'accesso alla fotocamera: ", err);
-                recognitionResult.textContent = "Errore: Camera non accessibile.";
+                statusElement.textContent = "Errore fotocamera. Concedi i permessi.";
             }
         }
-
-        // --- 3. Gestione del Riquadro di Selezione (Drag and Drop) ---
-        function handleStart(e) {
-            e.preventDefault();
-            isDragging = true;
-            
-            // Gestione evento touch o mouse
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            // Calcola l'offset iniziale rispetto al container della camera
-            const rect = selectionBox.getBoundingClientRect();
-            offsetX = clientX - rect.left;
-            offsetY = clientY - rect.top;
-
-            // Calcola il punto di partenza del container
-            const containerRect = cameraContainer.getBoundingClientRect();
-            startX = containerRect.left;
-            startY = containerRect.top;
-
-            selectionBox.style.cursor = 'grabbing';
+        
+        function switchToLiveView() {
+            video.style.display = 'block';
+            captureCanvas.style.display = 'none';
+            recognizeBtn.style.display = 'block';
+            newScanBtn.style.display = 'none';
+            correctionPanel.style.display = 'none';
+            selectionBox.style.display = 'block';
+            originalCapturedImage = null;
+            statusElement.textContent = 'Seleziona una nuova area.';
+            resultContainer.textContent = '-- cm';
         }
 
-        function handleMove(e) {
-            if (!isDragging) return;
-            e.preventDefault();
-
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            let newLeft = clientX - startX - offsetX;
-            let newTop = clientY - startY - offsetY;
-
-            // Limita il movimento all'interno del camera-container
-            newLeft = Math.max(0, Math.min(newLeft, cameraContainer.offsetWidth - selectionBox.offsetWidth));
-            newTop = Math.max(0, Math.min(newTop, cameraContainer.offsetHeight - selectionBox.offsetHeight));
-
-            selectionBox.style.left = newLeft + 'px';
-            selectionBox.style.top = newTop + 'px';
-        }
-
-        function handleEnd() {
-            isDragging = false;
-            selectionBox.style.cursor = 'move';
-        }
-
-        // Aggiungi listener per il movimento (sia mouse che touch)
-        selectionBox.addEventListener('mousedown', handleStart);
-        document.addEventListener('mousemove', handleMove);
-        document.addEventListener('mouseup', handleEnd);
-
-        selectionBox.addEventListener('touchstart', handleStart);
-        document.addEventListener('touchmove', handleMove);
-        document.addEventListener('touchend', handleEnd);
-
-        // --- 4. Funzione RICONOSCI (Cattura e IA Simulato) ---
-        recognizeBtn.addEventListener('click', () => {
-            recognitionResult.textContent = '... Riconoscimento in corso ...';
-
-            // Dati di posizione e dimensione del riquadro nel video feed
-            const containerRect = cameraContainer.getBoundingClientRect();
-            const boxRect = selectionBox.getBoundingClientRect();
-
-            // Calcola le coordinate relative del riquadro all'interno del container
-            const relativeLeft = boxRect.left - containerRect.left;
-            const relativeTop = boxRect.top - containerRect.top;
-            const boxWidth = boxRect.width;
-            const boxHeight = boxRect.height;
-
-            // La dimensione del video può essere diversa dalla dimensione del container (object-fit: cover)
-            // Per la cattura precisa, impostiamo il canvas alla dimensione nativa del video
-            const videoWidth = video.videoWidth;
-            const videoHeight = video.videoHeight;
-            
-            // Calcola il fattore di scala
-            const scaleX = videoWidth / containerRect.width;
-            const scaleY = videoHeight / containerRect.height;
-
-            // Coordinate e dimensioni sul video nativo
-            const sx = relativeLeft * scaleX;
-            const sy = relativeTop * scaleY;
-            const sWidth = boxWidth * scaleX;
-            const sHeight = boxHeight * scaleY;
-
-            // Imposta la dimensione del canvas per la parte da analizzare (per l'OCR)
-            canvas.width = sWidth;
-            canvas.height = sHeight;
-
-            // Disegna sul canvas SOLO la parte selezionata (cropping)
-            ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
-
-            // --- SIMULAZIONE OCR/IA (Velocità privilegiata) ---
-            setTimeout(() => {
-                // In un'applicazione reale, qui si caricherebbe l'immagine dal canvas e la si passerebbe al motore OCR/ML
-                // Esempio: Tesseract.recognize(canvas).then(...)
-                
-                // SIMULAZIONE: Genera un numero casuale per la risposta
-                const recognizedNumber = Math.floor(Math.random() * 90 + 10); // Numero casuale 10-99
-                recognitionResult.textContent = `${recognizedNumber} cm`;
-                
-                console.log(`Foto catturata e croppata. Numero riconosciuto (simulato): ${recognizedNumber}`);
-                
-                // Se si volesse visualizzare l'immagine catturata:
-                // document.body.appendChild(canvas);
-            }, 500); // Ritardo simulato per l'elaborazione
-        });
-
-        // --- 5. Funzione CORREGGI (Training Simulato) ---
-        correctBtn.addEventListener('click', () => {
-            const correctedValue = correctionInput.value.trim();
-
-            if (!correctedValue || isNaN(correctedValue)) {
-                recognitionResult.textContent = '⚠ Inserisci un numero valido.';
+        // --- LOGICA DI CATTURA E FILTRI IMMAGINE ---
+        function captureSelection() {
+            if (video.readyState < 3 || selectionRect.width <= 0) {
+                alert("Per favore, seleziona un'area valida sul video prima di riconoscere.");
                 return;
             }
-
-            recognitionResult.textContent = `... Training con ${correctedValue} ...`;
-
-            // Qui in un'applicazione reale avverrebbe il *training* (fine-tuning) del modello
-            // utilizzando l'ultima immagine catturata (quella sul canvas) e il valore `correctedValue`
             
-            // Questo processo è computazionalmente intenso e molto lento.
-            // SIMULAZIONE: Mostra un messaggio di successo e ripulisce il campo
-            setTimeout(() => {
-                recognitionResult.textContent = `Riconoscimento migliorato con ${correctedValue}!`;
-                correctionInput.value = '';
-                console.log(`Training simulato completato con valore: ${correctedValue}`);
-            }, 1000); // Ritardo simulato per il training
-        });
+            const scaleX = video.videoWidth / video.clientWidth;
+            const scaleY = video.videoHeight / video.clientHeight;
 
-        // Avvia la fotocamera all'avvio
+            const sx = selectionRect.x * scaleX;
+            const sy = selectionRect.y * scaleY;
+            const sWidth = selectionRect.width * scaleX;
+            const sHeight = selectionRect.height * scaleY;
+            
+            captureCanvas.width = sWidth;
+            captureCanvas.height = sHeight;
+            
+            ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+            originalCapturedImage = ctx.getImageData(0, 0, sWidth, sHeight);
+
+            video.style.display = 'none';
+            captureCanvas.style.display = 'block';
+            selectionBox.style.display = 'none';
+            
+            applyFiltersAndRecognize();
+        }
+
+        function applyFiltersAndRecognize() {
+            if (!originalCapturedImage) return;
+
+            const contrast = contrastSlider.value;
+            const brightness = brightnessSlider.value;
+            document.getElementById('contrast-value').textContent = contrast;
+            document.getElementById('brightness-value').textContent = brightness;
+            
+            ctx.filter = `contrast(${contrast}%) brightness(${brightness}%)`;
+            ctx.putImageData(originalCapturedImage, 0, 0);
+
+            runOCR();
+        }
+
+        // --- OCR ---
+        async function runOCR() {
+            if (isRecognizing) return;
+            isRecognizing = true;
+            statusElement.textContent = 'Riconoscimento in corso...';
+            resultContainer.textContent = '...';
+            
+            try {
+                const { data: { text } } = await Tesseract.recognize(
+                    captureCanvas, 'eng', 
+                    { tessedit_char_whitelist: whitelistInput.value }
+                );
+                const numbersOnly = text.replace(/[^0-9.]/g, '').trim();
+                resultContainer.textContent = numbersOnly ? `${numbersOnly} cm` : 'Nessun numero trovato';
+            } catch (error) {
+                console.error("Errore OCR:", error);
+                resultContainer.textContent = 'Errore OCR';
+            } finally {
+                isRecognizing = false;
+                recognizeBtn.style.display = 'block';
+                newScanBtn.style.display = 'block';
+                correctionPanel.style.display = 'block';
+                statusElement.textContent = 'Regola i filtri se il risultato non è corretto.';
+            }
+        }
+        
+        // --- IMPOSTAZIONI PERSISTENTI ---
+        function saveSettings() {
+            const settings = {
+                contrast: contrastSlider.value,
+                brightness: brightnessSlider.value,
+                whitelist: whitelistInput.value
+            };
+            localStorage.setItem('ocrSettings', JSON.stringify(settings));
+            alert('Impostazioni salvate!');
+        }
+
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('ocrSettings'));
+            if (settings) {
+                contrastSlider.value = settings.contrast;
+                brightnessSlider.value = settings.brightness;
+                whitelistInput.value = settings.whitelist;
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        recognizeBtn.addEventListener('click', captureSelection);
+        newScanBtn.addEventListener('click', switchToLiveView);
+        saveSettingsBtn.addEventListener('click', saveSettings);
+        contrastSlider.addEventListener('input', applyFiltersAndRecognize);
+        brightnessSlider.addEventListener('input', applyFiltersAndRecognize);
+        
+        // --- AVVIO ---
         startCamera();
     </script>
 </body>
