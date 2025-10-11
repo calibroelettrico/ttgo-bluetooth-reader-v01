@@ -2,10 +2,10 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riconoscimento Misure in CM</title>
-    <meta name="theme-color" content="#4285f4">
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIlJpY29ub3NjaW1lbnRvIE1pc3VyZSBjbSIsCiAgInNob3J0X25hbWUiOiAiTWlzdXJlIGNtIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaWNvbnMvaWNvbi0xOTJ4MTkyLnBuZyIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJpY29ucy9pY29uLTUxMng1MTIucG5nIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciCiAgICB9CiAgXSwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmZmZmZmYiLAogICJ0aGVtZV9jb2xvciI6ICIjNDI4NWY0Igp9">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Riconoscimento Misure Avanzato</title>
+    <meta name="theme-color" content="#3498db">
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIlJpY29ub3NjaW1lbnRvIE1pc3VyZSBDbSIsCiAgInNob3J0X25hbWUiOiAiTWlzdXJlIGNtIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaWNvbnMvaWNvbi0xOTJ4MTkyLnBuZyIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJpY29ucy9pY29uLTUxMng1MTIucG5nIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciCiAgICB9CiAgXSwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmZmZmZmYiLAogICJ0aGVtZV9jb2xvciI6ICIjMzQ5OGRiIgp9">
 
     <style>
         body {
@@ -15,149 +15,252 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             height: 100vh;
-            background-color: #f0f0f0;
+            background-color: #f0f2f5;
+            overflow: hidden; /* Evita lo scroll su mobile */
         }
-        #video-container {
+        #main-container {
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        #video-wrapper {
             position: relative;
             width: 90%;
-            max-width: 600px;
+            margin: 20px auto;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            touch-action: none; /* Disabilita il pan/zoom del browser durante il tocco */
         }
         #video {
             width: 100%;
             height: auto;
             display: block;
         }
-        #result-container {
+        #selection-box {
             position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.7);
+            border: 2px dashed #e74c3c;
+            background-color: rgba(231, 76, 60, 0.2);
+            box-sizing: border-box;
+            pointer-events: none; /* Rende il div trasparente agli eventi del mouse */
+            display: none;
+        }
+        #result-container {
+            background-color: #3498db;
             color: white;
-            padding: 10px 20px;
+            padding: 15px;
+            margin: 0 5%;
             border-radius: 8px;
-            font-size: 1.5em;
+            font-size: 1.8em;
             font-weight: bold;
-            text-align: center;
+            min-height: 1.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #controls {
+            background-color: white;
+            padding: 15px;
+            margin: 20px 5%;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        #controls label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        #whitelist-input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 60%;
+            font-size: 1em;
         }
         #status {
-            margin-top: 20px;
+            margin-top: 15px;
             font-style: italic;
             color: #666;
+            padding: 0 20px;
         }
     </style>
 </head>
 <body>
 
-    <div id="video-container">
-        <video id="video" playsinline autoplay muted></video>
-        <div id="result-container">Inquadra un numero...</div>
-    </div>
+    <div id="main-container">
+        <div id="video-wrapper">
+            <video id="video" playsinline autoplay muted></video>
+            <div id="selection-box"></div>
+        </div>
 
-    <p id="status">Inizializzazione della fotocamera...</p>
+        <div id="result-container">-- cm</div>
+
+        <div id="controls">
+            <label for="whitelist-input">"Training" OCR:</label>
+            <input type="text" id="whitelist-input" value="0123456789.">
+        </div>
+
+        <p id="status">Inizializzazione... Trascina sul video per selezionare l'area di lettura.</p>
+    </div>
 
     <script src='https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js'></script>
 
     <script>
         const video = document.getElementById('video');
+        const videoWrapper = document.getElementById('video-wrapper');
+        const selectionBox = document.getElementById('selection-box');
         const resultContainer = document.getElementById('result-container');
         const statusElement = document.getElementById('status');
+        const whitelistInput = document.getElementById('whitelist-input');
+        
         let isRecognizing = false;
-
-        // Service Worker Registration
+        let isSelecting = false;
+        let selectionRect = { x: 0, y: 0, width: 0, height: 0 };
+        let startCoords = { x: 0, y: 0 };
+        
+        // --- Service Worker (invariato) ---
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('data:application/javascript;base64,' + btoa(`
-                const CACHE_NAME = 'measure-cm-cache-v1';
-                const urlsToCache = [
-                    '/',
-                    'https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js'
-                ];
-
-                self.addEventListener('install', event => {
-                    event.waitUntil(
-                        caches.open(CACHE_NAME)
-                            .then(cache => {
-                                console.log('Opened cache');
-                                return cache.addAll(urlsToCache);
-                            })
-                    );
-                });
-
-                self.addEventListener('fetch', event => {
-                    event.respondWith(
-                        caches.match(event.request)
-                            .then(response => {
-                                if (response) {
-                                    return response;
-                                }
-                                return fetch(event.request);
-                            })
-                    );
-                });
-            `))
-            .then(registration => {
-                console.log('ServiceWorker registration successful with scope: ', registration.scope);
-            })
-            .catch(err => {
-                console.log('ServiceWorker registration failed: ', err);
-            });
+                const CACHE_NAME = 'measure-cm-cache-v2';
+                const urlsToCache = ['/', 'https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js'];
+                self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache))));
+                self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
+            `)).then(reg => console.log('ServiceWorker registrato.')).catch(err => console.error('Errore ServiceWorker:', err));
         }
 
-        // Camera Access
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment' // Prefer the rear camera
-                    }
-                });
-                video.srcObject = stream;
-                await video.play();
-                statusElement.textContent = 'Fotocamera attiva. Inizia il riconoscimento.';
-                recognize();
-            } catch (err) {
-                console.error("Errore nell'accesso alla fotocamera: ", err);
-                statusElement.textContent = "Impossibile accedere alla fotocamera. Assicurati di aver dato i permessi.";
+        // --- Logica di Selezione dell'Area ---
+        function getEventCoords(event) {
+            const rect = videoWrapper.getBoundingClientRect();
+            if (event.touches) {
+                return { x: event.touches[0].clientX - rect.left, y: event.touches[0].clientY - rect.top };
+            }
+            return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        }
+
+        function startSelection(event) {
+            isSelecting = true;
+            startCoords = getEventCoords(event);
+            selectionBox.style.display = 'block';
+            selectionBox.style.left = startCoords.x + 'px';
+            selectionBox.style.top = startCoords.y + 'px';
+            selectionBox.style.width = '0px';
+            selectionBox.style.height = '0px';
+        }
+
+        function moveSelection(event) {
+            if (!isSelecting) return;
+            const currentCoords = getEventCoords(event);
+            const x = Math.min(startCoords.x, currentCoords.x);
+            const y = Math.min(startCoords.y, currentCoords.y);
+            const width = Math.abs(currentCoords.x - startCoords.x);
+            const height = Math.abs(currentCoords.y - startCoords.y);
+
+            selectionBox.style.left = x + 'px';
+            selectionBox.style.top = y + 'px';
+            selectionBox.style.width = width + 'px';
+            selectionBox.style.height = height + 'px';
+        }
+
+        function endSelection() {
+            if (!isSelecting) return;
+            isSelecting = false;
+            const style = selectionBox.style;
+            selectionRect = {
+                x: parseFloat(style.left),
+                y: parseFloat(style.top),
+                width: parseFloat(style.width),
+                height: parseFloat(style.height)
+            };
+            if (selectionRect.width < 10 || selectionRect.height < 10) {
+                 selectionBox.style.display = 'none';
+                 selectionRect = { width: 0 }; // Invalida la selezione se troppo piccola
             }
         }
 
-        // OCR with Tesseract.js
-        function recognize() {
+        videoWrapper.addEventListener('mousedown', startSelection);
+        videoWrapper.addEventListener('mousemove', moveSelection);
+        videoWrapper.addEventListener('mouseup', endSelection);
+        videoWrapper.addEventListener('mouseleave', endSelection);
+        
+        videoWrapper.addEventListener('touchstart', startSelection, { passive: false });
+        videoWrapper.addEventListener('touchmove', moveSelection, { passive: false });
+        videoWrapper.addEventListener('touchend', endSelection);
+
+        // --- Logica Fotocamera e OCR ---
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                video.srcObject = stream;
+                await video.play();
+                statusElement.textContent = 'Fotocamera attiva. Seleziona un\'area per iniziare.';
+                recognizeLoop();
+            } catch (err) {
+                console.error("Errore fotocamera: ", err);
+                statusElement.textContent = "Impossibile accedere alla fotocamera. Concedi i permessi.";
+            }
+        }
+
+        function recognizeLoop() {
             const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
+            const context = canvas.getContext('2d', { willReadFrequently: true });
 
-            setInterval(() => {
-                if (video.readyState >= 3 && !isRecognizing) {
-                    isRecognizing = true;
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+            setInterval(async () => {
+                // Esegui solo se c'è un'area selezionata, il video è pronto e non sta già riconoscendo
+                if (video.readyState < 3 || isRecognizing || selectionRect.width <= 0) {
+                    return;
+                }
+                
+                isRecognizing = true;
+                
+                // Scala le coordinate della selezione dalla dimensione del display a quella del video
+                const scaleX = video.videoWidth / video.clientWidth;
+                const scaleY = video.videoHeight / video.clientHeight;
 
-                    Tesseract.recognize(
+                const sx = selectionRect.x * scaleX;
+                const sy = selectionRect.y * scaleY;
+                const sWidth = selectionRect.width * scaleX;
+                const sHeight = selectionRect.height * scaleY;
+                
+                canvas.width = sWidth;
+                canvas.height = sHeight;
+                
+                // Disegna solo la porzione selezionata del video sul canvas
+                context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+
+                try {
+                    statusElement.textContent = 'Riconoscimento in corso...';
+                    const { data: { text } } = await Tesseract.recognize(
                         canvas,
-                        'eng', // English is often best for recognizing numbers
+                        'eng', // English è spesso il migliore per i numeri
                         {
+                            // --- Qui viene usata la whitelist per il "training" ---
+                            tessedit_char_whitelist: whitelistInput.value,
                             logger: m => {
                                 if (m.status === 'recognizing text') {
-                                    statusElement.textContent = `Riconoscimento in corso... (${(m.progress * 100).toFixed(0)}%)`;
+                                    statusElement.textContent = `Analisi...(${(m.progress * 100).toFixed(0)}%)`;
                                 }
                             }
                         }
-                    ).then(({ data: { text } }) => {
-                        const numbers = text.match(/\d+/g);
-                        if (numbers) {
-                            resultContainer.textContent = numbers.join(' ') + ' cm';
-                        }
-                    }).finally(() => {
-                        isRecognizing = false;
-                    });
+                    );
+                    
+                    const numbersOnly = text.replace(/[^0-9.]/g, ''); // Pulisce ulteriormente il risultato
+                    if (numbersOnly.trim()) {
+                        resultContainer.textContent = numbersOnly.trim() + ' cm';
+                    }
+                    
+                } catch (error) {
+                    console.error("Errore OCR:", error);
+                } finally {
+                    isRecognizing = false;
+                    if(selectionRect.width > 0) {
+                        statusElement.textContent = "Inquadra il numero nell'area selezionata.";
+                    }
                 }
-            }, 2000); // Riconoscimento ogni 2 secondi
+
+            }, 1500); // Intervallo di riconoscimento ridotto a 1.5 secondi
         }
 
         startCamera();
