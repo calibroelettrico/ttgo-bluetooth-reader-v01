@@ -286,36 +286,30 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌲 Misurazione Volume Tronchi V038</h1>
+            <h1>🌲 Misurazione Volume Tronchi v040</h1>
             <p>Sistema di acquisizione dati da TTGO Display</p>
         </div>
         
         <div class="controls">
             <div class="control-row">
-                <div class="input-group">
-                    <label>Lunghezza (m):</label>
-                    <input type="number" id="length" step="0.1" value="3.0" min="0.1">
-                </div>
-                <div class="input-group">
-                    <label>Specie:</label>
-                    <select id="species">
-                        <option>Abete</option>
-                        <option>Pino</option>
-                        <option>Larice</option>
-                        <option>Faggio</option>
-                        <option>Quercia</option>
-                        <option>Castagno</option>
-                        <option>Altro</option>
-                    </select>
-                </div>
+                <label>Lunghezza (m):</label>
+                <input type="number" id="length" step="0.1" value="3.0" min="0.1">
+                <label>Specie:</label>
+                <select id="species">
+                    <option>Abete</option>
+                    <option>Pino</option>
+                    <option>Larice</option>
+                    <option>Faggio</option>
+                    <option>Quercia</option>
+                    <option>Castagno</option>
+                    <option>Altro</option>
+                </select>
             </div>
             
-            <div class="control-row">
-                <div class="input-group" style="flex: 1;">
-                    <label>Nome File:</label>
-                    <input type="text" id="filename" placeholder="es: taglio_ottobre" value="misure">
-                </div>
-                <button class="btn-success" onclick="sendFilename()" style="margin: 0; min-width: auto; padding: 10px 16px; white-space: nowrap;">✓ Conferma</button>
+            <div class="control-row-file">
+                <label>Nome File:</label>
+                <input type="text" id="filename" placeholder="es: taglio_ottobre" value="misure">
+                <button class="btn-success" onclick="sendFilename()" style="margin: 0; padding: 10px 16px; white-space: nowrap;">✓ Conferma</button>
             </div>
             
             <div class="btn-group">
