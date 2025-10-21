@@ -49,21 +49,71 @@
         }
         
         .control-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 15px;
             margin-bottom: 20px;
+            align-items: center;
         }
         
         .input-group {
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .input-group input[type="number"] {
+            width: 80px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .input-group select {
+            width: 120px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .input-group input[type="text"] {
+            width: 150px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
         }
         
         label {
             font-weight: 600;
-            margin-bottom: 5px;
             color: #2c5530;
+            white-space: nowrap;
+            margin: 0;
+        }
+        
+        .input-group input,
+        .input-group select {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            width: auto;
+            min-width: 120px;
+        }
+        
+        .input-group input[type="number"] {
+            width: 80px;
+        }
+        
+        .input-group select {
+            width: 120px;
+        }
+        
+        .input-group input[type="text"] {
+            width: 150px;
         }
         
         input, select {
@@ -236,7 +286,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌲 Misurazione Volume Tronchi V032</h1>
+            <h1>🌲 Misurazione Volume Tronchi V036</h1>
             <p>Sistema di acquisizione dati da TTGO Display</p>
         </div>
         
@@ -258,13 +308,15 @@
                         <option>Altro</option>
                     </select>
                 </div>
+            </div>
+            
+            <div class="control-group">
                 <div class="input-group">
                     <label>Nome File:</label>
                     <input type="text" id="filename" placeholder="es: taglio_ottobre" value="misure">
                 </div>
                 <div class="input-group">
-                    <label>&nbsp;</label>
-                    <button class="btn-success" onclick="sendFilename()" style="margin-top: 0;">✓ Conferma Nome File</button>
+                    <button class="btn-success" onclick="sendFilename()" style="margin: 0; min-width: auto; padding: 10px 20px;">✓ Conferma Nome File</button>
                 </div>
             </div>
             
