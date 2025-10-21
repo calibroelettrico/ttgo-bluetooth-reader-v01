@@ -286,7 +286,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌲 Misurazione Volume Tronchi V047</h1>
+            <h1>🌲 Misurazione Volume Tronchi V050</h1>
             <p>Sistema di acquisizione dati da TTGO Display</p>
         </div>
         
@@ -295,7 +295,7 @@
                 <label>Lunghezza (m):</label>
                 <input type="number" id="length" step="0.1" value="3.0" min="0.1" style="width: 60px;">
                 <label>Specie:</label>
-                <select id="species">
+                <select id="species" style="width: 100px;">
                     <option>Abete</option>
                     <option>Pino</option>
                     <option>Larice</option>
@@ -308,7 +308,7 @@
             
             <div class="control-row-file">
                 <label>Nome File:</label>
-                <input type="text" id="filename" placeholder="es: taglio_ottobre" value="misure">
+                <input type="text" id="filename" placeholder="es: taglio_ottobre" value="misure" style="width: 140px;">
                 <button class="btn-success" onclick="sendFilename()" style="margin: 0; padding: 10px 16px; white-space: nowrap;">✓ Conferma</button>
             </div>
             
