@@ -286,12 +286,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌲 Misurazione Volume Tronchi V036</h1>
+            <h1>🌲 Misurazione Volume Tronchi V038</h1>
             <p>Sistema di acquisizione dati da TTGO Display</p>
         </div>
         
         <div class="controls">
-            <div class="control-group">
+            <div class="control-row">
                 <div class="input-group">
                     <label>Lunghezza (m):</label>
                     <input type="number" id="length" step="0.1" value="3.0" min="0.1">
@@ -310,14 +310,12 @@
                 </div>
             </div>
             
-            <div class="control-group">
-                <div class="input-group">
+            <div class="control-row">
+                <div class="input-group" style="flex: 1;">
                     <label>Nome File:</label>
                     <input type="text" id="filename" placeholder="es: taglio_ottobre" value="misure">
                 </div>
-                <div class="input-group">
-                    <button class="btn-success" onclick="sendFilename()" style="margin: 0; min-width: auto; padding: 10px 20px;">✓ Conferma Nome File</button>
-                </div>
+                <button class="btn-success" onclick="sendFilename()" style="margin: 0; min-width: auto; padding: 10px 16px; white-space: nowrap;">✓ Conferma</button>
             </div>
             
             <div class="btn-group">
