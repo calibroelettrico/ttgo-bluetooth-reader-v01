@@ -286,7 +286,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌲 Misurazione Volume Tronchi V051</h1>
+            <h1>🌲 Misurazione Volume Tronchi V053</h1>
             <p>Sistema di acquisizione dati da TTGO Display</p>
         </div>
         
@@ -369,6 +369,7 @@
         let bleCharacteristic = null;
         let currentFilename = 'misure';
         let deviceConnected = false;
+        let ignoreNextDiameter = false; // Flag per ignorare il prossimo diametro ricevuto
 
         // Service Worker per PWA
         if ('serviceWorker' in navigator) {
@@ -542,7 +543,10 @@
             if (diameter && !isNaN(diameter) && diameter > 0) {
                 const diamValue = parseFloat(diameter);
                 
-                // Invia alla board TTGO se connessa
+                // Aggiungi alla PWA subito
+                addMeasurement(diamValue);
+                
+                // Invia alla board TTGO se connessa (la board NON reinvierà via BLE)
                 if (bleCharacteristic && deviceConnected) {
                     try {
                         const encoder = new TextEncoder();
@@ -552,9 +556,6 @@
                         console.error('Errore invio misurazione manuale:', error);
                     }
                 }
-                
-                // Aggiungi alla PWA
-                addMeasurement(diamValue);
             }
         }
 
