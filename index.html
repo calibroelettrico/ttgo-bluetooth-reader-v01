@@ -286,7 +286,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌲 Misurazione Volume Tronchi V050</h1>
+            <h1>🌲 Misurazione Volume Tronchi V051</h1>
             <p>Sistema di acquisizione dati da TTGO Display</p>
         </div>
         
@@ -537,10 +537,24 @@
         }
 
         // Inserimento manuale
-        function addManualEntry() {
+        async function addManualEntry() {
             const diameter = prompt('Inserisci il diametro (cm):');
             if (diameter && !isNaN(diameter) && diameter > 0) {
-                addMeasurement(parseFloat(diameter));
+                const diamValue = parseFloat(diameter);
+                
+                // Invia alla board TTGO se connessa
+                if (bleCharacteristic && deviceConnected) {
+                    try {
+                        const encoder = new TextEncoder();
+                        await bleCharacteristic.writeValue(encoder.encode('MANUAL:' + diamValue.toFixed(1)));
+                        console.log('Misurazione manuale inviata alla board:', diamValue);
+                    } catch (error) {
+                        console.error('Errore invio misurazione manuale:', error);
+                    }
+                }
+                
+                // Aggiungi alla PWA
+                addMeasurement(diamValue);
             }
         }
 
